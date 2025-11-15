@@ -1,5 +1,9 @@
 # WikiFlow
 
+![WikiFlow Logo](./assets/images/icon.png)
+
+Demo: https://wikiflow--nd9xzc9921.expo.app/
+
 A modern, cross-platform Wikipedia reader built with React Native and Expo. Explore Wikipedia with a beautiful, intuitive interface optimized for mobile devices. Experience the smooth flow of knowledge discovery.
 
 ## Features
