@@ -4,12 +4,14 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { memo, useCallback } from 'react';
 import { View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { Card, MD3Theme, Text } from 'react-native-paper';
+
+import { RecommendationItem } from '../../types/components';
 
 interface NewsCardProps {
-  item: any;
+  item: RecommendationItem;
   itemWidth: number;
-  theme: any;
+  theme: MD3Theme;
 }
 
 function NewsCard({ item, itemWidth, theme }: NewsCardProps) {
@@ -18,11 +20,11 @@ function NewsCard({ item, itemWidth, theme }: NewsCardProps) {
   // Handle card press - navigate to first link if available
   const handleCardPress = useCallback(() => {
     if (item?.links?.[0]?.title) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.links[0].title)}`);
+      router.push(`/article/${encodeURIComponent(item.links[0].title)}`);
     } else if (item?.articleTitle) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.articleTitle)}`);
+      router.push(`/article/${encodeURIComponent(item.articleTitle)}`);
     } else if (item?.title) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.title)}`);
+      router.push(`/article/${encodeURIComponent(item.title)}`);
     }
   }, [item]);
 

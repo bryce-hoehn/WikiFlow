@@ -33,7 +33,7 @@ export default function TrendingListItem({
     <View key={item.id}>
       <List.Item
         title={item.normalizedTitle}
-        onPress={() => router.push(`/(zArticleStack)/${encodeURIComponent(item.title)}`)}
+        onPress={() => router.push(`/article/${encodeURIComponent(item.title)}`)}
         titleStyle={{
           fontSize: 16,
           fontWeight: '500',

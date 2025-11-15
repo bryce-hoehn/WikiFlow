@@ -1,4 +1,4 @@
-import { actionAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 interface BacklinkResponse {
   query: {
@@ -23,7 +23,8 @@ interface BacklinkResponse {
  */
 export const fetchArticleBacklinks = async (articleTitle: string): Promise<string[]> => {
   try {
-    const response = await actionAxiosInstance.get<BacklinkResponse>('', {
+    const response = await axiosInstance.get<BacklinkResponse>('', {
+      baseURL: WIKIPEDIA_API_CONFIG.BASE_URL,
       params: {
         action: 'query',
         prop: 'linkshere',
@@ -61,8 +62,8 @@ export const fetchArticleBacklinks = async (articleTitle: string): Promise<strin
       })
       .map(backlink => backlink.title);
 
-  } catch (error: any) {
-    console.error(`Failed to fetch backlinks for ${articleTitle}:`, error.response?.status, error.response?.data || error);
+  } catch (error: unknown) {
+    console.error(`Failed to fetch backlinks for ${articleTitle}:`, (error as { response?: { status?: number; data?: unknown } }).response?.status, (error as { response?: { data?: unknown } }).response?.data || error);
     return [];
   }
 };

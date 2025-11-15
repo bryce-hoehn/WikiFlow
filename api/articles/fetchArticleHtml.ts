@@ -1,4 +1,4 @@
-import { restAxiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 /**
  * Fetch full HTML content for a Wikipedia article using the Wikimedia Core API
@@ -16,28 +16,29 @@ export const fetchArticleHtml = async (title: string): Promise<string | null> =>
     
     // Try Core API first (preferred for better HTML formatting)
     try {
-      const response = await restAxiosInstance.get<string>(`/page/${encodeURIComponent(cleanTitle)}/html`, {
+      const response = await axiosInstance.get<string>(`/page/${encodeURIComponent(cleanTitle)}/html`, {
         baseURL: WIKIPEDIA_API_CONFIG.CORE_API_BASE_URL,
         headers: {
           'Accept': 'text/html'
         },
-        timeout: 10000, // 10 second timeout
+        // Uses centralized 8s timeout from axiosInstance
       });
       
       return response.data;
-    } catch (coreError: any) {
-      console.warn(`Core API failed for "${title}", trying REST API mobile-html fallback:`, coreError.response?.status);
+    } catch (coreError: unknown) {
+      console.warn(`Core API failed for "${title}", trying REST API mobile-html fallback:`, (coreError as { response?: { status?: number } }).response?.status);
       return null
     }
-  } catch (error: any) {
-    console.error('Failed to fetch article HTML:', title, error.response?.status, error.response?.data);
+  } catch (error: unknown) {
+    const axiosError = error as { response?: { status?: number; data?: unknown }; code?: string };
+    console.error('Failed to fetch article HTML:', title, axiosError.response?.status, axiosError.response?.data);
     
     // Provide more detailed error information
-    if (error.response?.status === 404) {
+    if (axiosError.response?.status === 404) {
       console.error(`Article not found: "${title}" - The page may not exist or the title format is incorrect`);
-    } else if (error.code === 'ECONNABORTED') {
+    } else if (axiosError.code === 'ECONNABORTED') {
       console.error('Request timeout while fetching article HTML');
-    } else if (error.response?.status >= 500) {
+    } else if (axiosError.response?.status && axiosError.response.status >= 500) {
       console.error('Server error while fetching article HTML');
     }
     

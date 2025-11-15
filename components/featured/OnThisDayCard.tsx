@@ -4,12 +4,14 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { memo, useCallback } from 'react';
 import { View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { Card, MD3Theme, Text } from 'react-native-paper';
+
+import { RecommendationItem } from '../../types/components';
 
 interface OnThisDayCardProps {
-  item: any;
+  item: RecommendationItem;
   itemWidth: number;
-  theme: any;
+  theme: MD3Theme;
 }
 
 function OnThisDayCard({ item, theme }: OnThisDayCardProps) {
@@ -20,9 +22,9 @@ function OnThisDayCard({ item, theme }: OnThisDayCardProps) {
   // Handle card press - navigate to first page if available
   const handleCardPress = useCallback(() => {
     if (item?.pages?.[0]?.title) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.pages[0].title)}`);
+      router.push(`/article/${encodeURIComponent(item.pages[0].title)}`);
     } else if (item?.articleTitle) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.articleTitle)}`);
+      router.push(`/article/${encodeURIComponent(item.articleTitle)}`);
     }
   }, [item]);
 
@@ -31,7 +33,7 @@ function OnThisDayCard({ item, theme }: OnThisDayCardProps) {
       {year && (
         <Text
           variant="titleLarge"
-          onPress={() => router.push(`/(zArticleStack)/${encodeURIComponent(year)}`)}
+          onPress={() => router.push(`/article/${encodeURIComponent(year)}`)}
           style={{
             fontWeight: 'bold',
             color: theme.colors.primary,

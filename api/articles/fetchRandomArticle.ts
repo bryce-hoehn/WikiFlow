@@ -1,14 +1,15 @@
 import { ArticleResponse } from '../../types/api/articles';
-import { restAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 export const fetchRandomArticle = async (maxRetries = 3): Promise<ArticleResponse> => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // Use Wikipedia REST API to get a random page summary
       const url = '/page/random/summary';
-      const response = await restAxiosInstance.get(url, {
-        timeout: 10000, // 10 second timeout
+      const response = await axiosInstance.get(url, {
+        baseURL: WIKIPEDIA_API_CONFIG.REST_API_BASE_URL,
         validateStatus: (status) => status === 200 // Only accept 200 OK
+        // Uses centralized 8s timeout from axiosInstance
       });
 
       const data = response.data;
@@ -22,11 +23,12 @@ export const fetchRandomArticle = async (maxRetries = 3): Promise<ArticleRespons
       return {
         article: data,
       };
-    } catch (error: any) {
-      console.warn(`Failed to fetch random article (attempt ${attempt}/${maxRetries}):`, error.message);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number }; code?: string; message?: string };
+      console.warn(`Failed to fetch random article (attempt ${attempt}/${maxRetries}):`, axiosError.message);
       
       // If it's a 404 or network error, retry
-      if (error.response?.status === 404 || error.code === 'NETWORK_ERROR') {
+      if (axiosError.response?.status === 404 || axiosError.code === 'NETWORK_ERROR') {
         if (attempt < maxRetries) {
           // Wait before retrying (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, 500 * attempt));

@@ -1,5 +1,5 @@
 import { PageInfo, RawSearchResult, SearchSuggestion } from '../../types/api';
-import { actionAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 interface CombinedSearchResponse {
   query?: {
@@ -28,7 +28,10 @@ export const fetchSearchSuggestions = async (
       origin: '*'
     };
 
-    const searchResponse = await actionAxiosInstance.get<CombinedSearchResponse>('', { params });
+    const searchResponse = await axiosInstance.get<CombinedSearchResponse>('', {
+      baseURL: WIKIPEDIA_API_CONFIG.BASE_URL,
+      params
+    });
     const searchData = searchResponse.data;
 const results = searchData.query?.search || [];
 

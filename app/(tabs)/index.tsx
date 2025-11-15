@@ -2,8 +2,9 @@ import ForYouFeed from '@/components/home/ForYouFeed';
 import HotFeed from '@/components/home/HotFeed';
 import RandomFeed from '@/components/home/RandomFeed';
 import React, { useState } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SceneRendererProps, TabBar, TabView } from 'react-native-tab-view';
 
 export default function HomeScreen() {
@@ -50,15 +51,15 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.surface }} edges={['top']}>
       <TabView
         navigationState={{ index, routes }}
         renderScene={renderScene}
         onIndexChange={handleTabPress}
         initialLayout={{ width: layout.width }}
         renderTabBar={renderTabBar}
-        style={{ backgroundColor: theme.colors.surface, paddingTop: 72 }}
+        style={{ backgroundColor: theme.colors.surface }}
       />
-    </View>
+    </SafeAreaView>
   );
 }

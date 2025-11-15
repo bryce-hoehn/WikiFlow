@@ -3,6 +3,6 @@
  */
 
 export {
-  actionAxiosInstance, delay, restAxiosInstance, WIKIPEDIA_API_CONFIG
+  axiosInstance, delay, WIKIPEDIA_API_CONFIG
 } from './config';
 

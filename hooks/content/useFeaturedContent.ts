@@ -22,8 +22,8 @@ export default function useFeaturedContent() {
     },
     staleTime: 60 * 60 * 1000, // 1 hour - featured content changes daily
     gcTime: 2 * 60 * 60 * 1000, // 2 hours garbage collection time
-    retry: 1, // Allow one retry for transient failures
-    retryDelay: 1000, // 1 second delay between retries
+    retry: 3, // Allow 3 retries for transient failures
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff up to 30 seconds
   });
 
   return queryResult;

@@ -6,6 +6,14 @@ import { BookmarksProvider } from '../context/BookmarksContext';
 import { FeaturedContentProvider } from '../context/FeaturedContentContext';
 import { ThemeProvider } from '../context/ThemeProvider';
 
+// Silence development-only logs in production builds (aggressive sweep).
+// Keeps console.error for runtime errors, removes console.log/warn/debug noise.
+if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+  console.log = () => {};
+  console.warn = () => {};
+  console.debug = () => {};
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -22,10 +30,8 @@ export default function Layout() {
         <ThemeProvider>
           <BookmarksProvider>
             <FeaturedContentProvider>
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="(zArticleStack)" options={{ headerShown: false }} />
-                <Stack.Screen name="(zCategoryStack)" options={{ headerShown: false }} />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
               </Stack>
             </FeaturedContentProvider>
           </BookmarksProvider>

@@ -19,14 +19,14 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
 
   const handleSearchSubmit = useCallback(() => {
     if (query.trim()) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(query)}`);
+      router.push(`/article/${encodeURIComponent(query)}`);
       onClose();
       setQuery('');
     }
   }, [query, onClose]);
 
   const handleSuggestionClick = useCallback((title: string) => {
-    router.push(`/(zArticleStack)/${encodeURIComponent(title)}`);
+    router.push(`/article/${encodeURIComponent(title)}`);
     onClose();
     setQuery('');
   }, [onClose]);

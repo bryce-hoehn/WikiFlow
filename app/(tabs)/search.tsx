@@ -1,5 +1,6 @@
 import FeaturedArticleSection from '@/components/search/FeaturedArticleSection';
 import FeaturedCarouselSection from '@/components/search/FeaturedCarouselSection';
+import FeaturedContentError from '@/components/search/FeaturedContentError';
 import FeaturedPictureSection from '@/components/search/FeaturedPictureSection';
 import SearchOverlay from '@/components/search/SearchOverlay';
 import TrendingSection from '@/components/search/TrendingSection';
@@ -11,7 +12,7 @@ import { Appbar, Searchbar, useTheme } from 'react-native-paper';
 
 export default function SearchScreen() {
   const theme = useTheme();
-  const { featuredContent, isLoading } = useFeaturedContent();
+  const { featuredContent, isLoading, error } = useFeaturedContent();
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
 
   const handleSearchOpen = () => {
@@ -117,6 +118,40 @@ export default function SearchScreen() {
         return false;
     }
   });
+
+  // Show error state if there's an error and no content
+  if (error && !featuredContent && !isLoading) {
+    return (
+      <>
+        <SearchOverlay
+          visible={showSearchOverlay}
+          onClose={handleSearchClose}
+        />
+        
+        {!showSearchOverlay && (
+          <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+            <Appbar.Header
+              style={{
+                backgroundColor: theme.colors.surface,
+              }}
+            >
+              <Searchbar
+                placeholder="Search Wikipedia"
+                value=""
+                onFocus={handleSearchOpen}
+                style={{
+                  flex: 1,
+                  marginHorizontal: 16,
+                }}
+              />
+            </Appbar.Header>
+            
+            <FeaturedContentError />
+          </View>
+        )}
+      </>
+    );
+  }
 
   return (
     <>

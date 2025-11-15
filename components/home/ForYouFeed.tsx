@@ -47,7 +47,7 @@ export default function ForYouFeed() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [getRecommendations, visitedArticles.length, visitedArticlesLoading]);
+  }, [getRecommendations, visitedArticles, visitedArticlesLoading]);
 
   const handleRefresh = useCallback(() => {
     loadRecommendations(true);
@@ -72,7 +72,7 @@ export default function ForYouFeed() {
         setLoading(false);
       }
     }
-  }, [loading, getRecommendations, visitedArticles.length]);
+  }, [loading, getRecommendations, visitedArticles]);
 
   useEffect(() => {
     loadRecommendations();

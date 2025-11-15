@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { parseDocument } from 'htmlparser2';
 import React from 'react';
 import { Linking } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
+import { parseHtml } from '../../utils/articleParsing';
 
 interface HtmlRendererProps {
   html: string;
@@ -13,6 +13,9 @@ interface HtmlRendererProps {
 
 /**
  * Simplified HTML renderer that renders all text inline
+ *
+ * Uses the centralized parseHtml helper so parsing behavior is consistent
+ * across the codebase and to avoid direct htmlparser2 imports here.
  */
 export default function HtmlRenderer({ html, maxLines, variant = 'bodyLarge', style }: HtmlRendererProps) {
   const theme = useTheme();
@@ -22,14 +25,13 @@ export default function HtmlRenderer({ html, maxLines, variant = 'bodyLarge', st
     return null;
   }
 
-  let elements = [];
+  let elements: any[] = [];
   
   try {
-    const doc = parseDocument(html);
-    elements = doc.children;
+    const doc = parseHtml(html);
+    elements = (doc && (doc as any).children) || [];
   } catch (parseError) {
-    console.warn('HTML parsing error:', parseError);
-    // Fallback: render raw text without HTML parsing
+    // Avoid noisy logging — fallback to plain text rendering when parse fails
     const plainText = html.replace(/<[^>]*>/g, '').trim();
     if (!plainText) {
       return null;
@@ -51,14 +53,14 @@ export default function HtmlRenderer({ html, maxLines, variant = 'bodyLarge', st
       const categoryUrl = href.startsWith('./Category:')
         ? href.slice('./Category:'.length)
         : href.slice('https://en.wikipedia.org/wiki/Wikipedia:Contents/Categories#'.length);
-      router.push(`/(tabs)/(zCategoryStack)/${encodeURIComponent(categoryUrl)}`);
+      router.push(`/subcategory/${encodeURIComponent(categoryUrl)}`);
     } else if (href.startsWith('./') || href.includes('wikipedia.org/wiki/')) {
       const articleUrl = href.startsWith('./')
         ? href.slice('./'.length)
         : href.slice('https://en.wikipedia.org/wiki/'.length);
-      router.push(`/(zArticleStack)/${encodeURIComponent(articleUrl)}`);
+      router.push(`/article/${encodeURIComponent(articleUrl)}`);
     } else {
-      Linking.openURL(href).catch(console.error);
+      Linking.openURL(href).catch(() => {});
     }
   };
 
@@ -94,8 +96,10 @@ export default function HtmlRenderer({ html, maxLines, variant = 'bodyLarge', st
             </Text>
           );
         }
+        case 'style':
+          return null;
         case 'span':
-          if (node.attribs?.class === 'wikipedia-link' || 'mw-page-title-main') {
+          if (node.attribs?.class === 'wikipedia-link' || node.attribs?.class === 'mw-page-title-main') {
             let articleTitle = '';
             if (node.children?.[0]?.type === 'text') {
               articleTitle = node.children[0].data;
@@ -106,7 +110,7 @@ export default function HtmlRenderer({ html, maxLines, variant = 'bodyLarge', st
                 style={{ color: theme.colors.primary }}
                 onPress={() => {
                   if (articleTitle) {
-                    router.push(`/(zArticleStack)/${encodeURIComponent(articleTitle)}`);
+                    router.push(`/article/${encodeURIComponent(articleTitle)}`);
                   }
                 }}
               >

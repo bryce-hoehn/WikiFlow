@@ -1,4 +1,4 @@
-import { actionAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 /**
  * Fetch categories for a specific article using Wikipedia API
@@ -14,7 +14,10 @@ export async function fetchArticleCategories(articleTitle: string): Promise<stri
       origin: '*'
     };
 
-    const response = await actionAxiosInstance.get('', { params });
+    const response = await axiosInstance.get('', {
+      baseURL: WIKIPEDIA_API_CONFIG.BASE_URL,
+      params
+    });
     const data = response.data;
 
     if (!data.query || !data.query.pages) {
@@ -25,7 +28,7 @@ export async function fetchArticleCategories(articleTitle: string): Promise<stri
     const page = Object.values(data.query.pages)[0] as any;
     
     if (page.categories) {
-      page.categories.forEach((category: any) => {
+      page.categories.forEach((category: { title: string }) => {
         // Remove "Category:" prefix and add to list
         const categoryName = category.title.replace('Category:', '');
         categories.push(categoryName);

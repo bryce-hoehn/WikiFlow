@@ -4,7 +4,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Appbar, Card, Icon, List, Surface, Text, useTheme } from 'react-native-paper';
-import CustomBottomNav from '../../components/layout/CustomBottomNav';
 import { useCategoryMembers } from '../../hooks';
 import { CategoryArticle, CategorySubcategory } from '../../types/api';
 
@@ -21,16 +20,16 @@ export default function SubCategories() {
       router.back();
     } else {
       // Fallback navigation if there's no screen to go back to
-      router.push('/(tabs)/categories');
+      router.push('/categories');
     }
   };
 
   const handleArticlePress = (articleTitle: string) => {
-    router.push(`/(zArticleStack)/${encodeURIComponent(articleTitle)}`);
+    router.push(`/article/${encodeURIComponent(articleTitle)}`);
   };
 
   const handleSubcategoryPress = (subcategoryTitle: string) => {
-    router.push(`/(zCategoryStack)/${encodeURIComponent(subcategoryTitle)}`);
+    router.push(`/subcategory/${encodeURIComponent(subcategoryTitle)}`);
   };
 
   const renderArticleItem = (article: CategoryArticle) => (
@@ -191,7 +190,6 @@ export default function SubCategories() {
           </View>
         )}
       </View>
-      <CustomBottomNav />
     </View>
   );
 }

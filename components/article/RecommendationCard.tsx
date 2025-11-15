@@ -33,7 +33,7 @@ export default function RecommendationCard({
           elevation: 1,
           overflow: 'hidden',
         }}
-        onPress={() => router.push(`/(zArticleStack)/${encodeURIComponent(item.title)}`)}
+        onPress={() => router.push(`/article/${encodeURIComponent(item.title)}`)}
         accessibilityLabel={`Open recommended article: ${item.title}`}
         accessibilityHint={`Opens the recommended article: ${item.title}`}
       >

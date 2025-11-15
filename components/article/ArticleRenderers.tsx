@@ -4,14 +4,20 @@ import { Image } from "expo-image";
 import React, { useEffect, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { Text, useTheme } from "react-native-paper";
-import { runOnUI } from 'react-native-worklets';
+import type { TNode } from 'react-native-render-html';
 
 // Custom caption renderer for table captions
-export const CaptionRenderer = ({ tnode }: { tnode: any }) => {
+export const CaptionRenderer = ({ tnode }: { tnode: TNode }) => {
   const theme = useTheme();
   
   const textContent = tnode.children
-    ?.map((child: any) => child.data || '')
+    ?.map((child: TNode) => {
+      // Extract text content from text nodes
+      if (child.type === 'text' && 'data' in child) {
+        return (child as any).data || '';
+      }
+      return '';
+    })
     .join('')
     .trim();
 
@@ -37,14 +43,14 @@ export const CaptionRenderer = ({ tnode }: { tnode: any }) => {
 };
 
 // Custom image renderer using Expo Image with comprehensive URL resolution
-export const ImageRenderer = ({ 
-  tnode, 
-  style, 
-  onImagePress 
-}: { 
-  tnode: any; 
-  style: any; 
-  onImagePress: (image: { uri: string; alt?: string }) => void 
+export const ImageRenderer = ({
+  tnode,
+  style,
+  onImagePress
+}: {
+  tnode: TNode;
+  style: React.CSSProperties;
+  onImagePress: (image: { uri: string; alt?: string }) => void
 }) => {
   const src = tnode.attributes?.src;
   const alt = tnode.attributes?.alt || '';
@@ -87,11 +93,6 @@ export const ImageRenderer = ({
       imageUrl = parts.slice(0, -1).join('/');
     }
 
-    // Special handling for Wikimedia map tiles and dynamic images
-    if (imageUrl.includes('osm-intl') || imageUrl.includes('maps.wikimedia.org')) {
-      // These are dynamic map tiles - they should work as-is with the full URL
-    }
-
     return imageUrl;
   };
 
@@ -115,7 +116,7 @@ export const ImageRenderer = ({
           style={{
             width: '100%',
             height: undefined,
-            aspectRatio: tnode.attributes.width / tnode.attributes.height || 1.5
+            aspectRatio: (Number(tnode.attributes?.width) || 1) / (Number(tnode.attributes?.height) || 1) || 1.5
           }}
           contentFit="contain"
           alt={alt}
@@ -128,12 +129,10 @@ export const ImageRenderer = ({
 };
 
 /**
- * Worklet function for DOM processing - runs on UI thread without blocking
+ * DOM processing function - synchronous version without worklets
  */
-const processDomWorklet = (element: any) => {
-  'worklet';
-  
-  if (!element.children || element.children.length === 0) {
+const processDom = (element: any) => {
+  if (!element || !element.children || element.children.length === 0) {
     return;
   }
 
@@ -155,9 +154,10 @@ const processDomWorklet = (element: any) => {
       '.mw-empty-elt',
       '.mw-valign-text-top',
       '.plainlinks',
+      'style'
     ];
 
-    // Process all selectors in the worklet thread
+    // Process all selectors synchronously but in small batches to avoid long loops
     for (const selector of selectorsToRemove) {
       const elements = selectAll(selector, element);
       
@@ -166,34 +166,29 @@ const processDomWorklet = (element: any) => {
           if (el.parentNode) {
             removeElement(el);
           }
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (error) {
+        } catch {
           // Continue with next element
         }
       }
     }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
-    // Silently fail to avoid blocking the UI
-  }
+ } catch {
+   // Silently fail to avoid blocking the UI
+ }
 };
 
 /**
- * Hook for creating DOM visitors using worklets to avoid blocking UI thread
+ * Hook for creating DOM visitors - synchronous version
  */
 export const useDomVisitors = () => {
   const [visitors, setVisitors] = useState<any>(null);
 
   useEffect(() => {
-    // Initialize the visitors object once
     const cleanCss = (element: any) => {
-      // Run the DOM processing on the UI thread via worklet
-      runOnUI(() => {
-        processDomWorklet(element);
-      })();
+      // Lightweight DOM cleanup; avoid logging in production
+      processDom(element);
     };
-
+ 
     setVisitors({
       onElement: cleanCss,
     });

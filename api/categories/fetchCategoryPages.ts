@@ -1,7 +1,7 @@
 import { CategoryArticle, CategoryPagesResponse, CategorySubcategory } from '../../types/api';
 import { fetchArticleSummary } from '../articles';
 import { fetchDescription } from '../articles/fetchDescription';
-import { actionAxiosInstance, restAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 /**
  * Fetch category pages with Wikipedia API compliance
@@ -11,9 +11,6 @@ import { actionAxiosInstance, restAxiosInstance } from '../shared';
  * - Uses REST API for article summaries (preferred for performance)
  * - Falls back to alternative methods if primary API fails
  *
- * Rate limiting is enforced by:
- * - actionAxiosInstance: 1 concurrent request, <5 req/sec
- * - restAxiosInstance: <5 concurrent requests, <10 req/sec
  */
 export const fetchCategoryPages = async (
   categoryTitle: string
@@ -33,7 +30,10 @@ export const fetchCategoryPages = async (
     };
 
 
-    const response = await actionAxiosInstance.get('', { params });
+    const response = await axiosInstance.get('', {
+      baseURL: WIKIPEDIA_API_CONFIG.BASE_URL,
+      params
+    });
     const data = response.data;
 
     if (!data.query || !data.query.categorymembers || data.query.categorymembers.length === 0) {
@@ -57,7 +57,9 @@ export const fetchCategoryPages = async (
           try {
             // Use REST API summary endpoint for thumbnails and descriptions
             const summaryUrl = `/page/summary/${encodeURIComponent(member.title)}`;
-            const summaryResponse = await restAxiosInstance.get(summaryUrl);
+            const summaryResponse = await axiosInstance.get(summaryUrl, {
+              baseURL: WIKIPEDIA_API_CONFIG.REST_API_BASE_URL
+            });
             const summaryData = summaryResponse.data;
             
             articles.push({
@@ -100,8 +102,8 @@ export const fetchCategoryPages = async (
     await Promise.allSettled(articlePromises);
 
     return { articles, subcategories };
-  } catch (error: any) {
-    console.error(`Failed to fetch category pages for ${categoryTitle}:`, error.response?.status, error.response?.data || error);
+  } catch (error: unknown) {
+    console.error(`Failed to fetch category pages for ${categoryTitle}:`, (error as { response?: { status?: number; data?: unknown } }).response?.status, (error as { response?: { data?: unknown } }).response?.data || error);
     return { articles: [], subcategories: [] };
   }
 };

@@ -1,4 +1,4 @@
-import { restAxiosInstance } from '../shared';
+import { axiosInstance } from '../shared';
 
 interface TrendingArticle {
   article: string;
@@ -34,11 +34,13 @@ export const fetchTrendingArticles = async (): Promise<TrendingArticle[]> => {
 
     const url = `/metrics/pageviews/top/en.wikipedia/all-access/${year}/${month}/${day}`;
 
-    // Use the rate-limited REST API instance
-    const response = await restAxiosInstance.get<PageViewResponse>(url, {
+    const response = await axiosInstance.get<PageViewResponse>(url, {
       baseURL: 'https://wikimedia.org/api/rest_v1',
       headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+      },
+      params: {
+        origin: '*'
       }
     });
 
@@ -65,8 +67,8 @@ export const fetchTrendingArticles = async (): Promise<TrendingArticle[]> => {
     return trendingArticles
       .filter(article => article.trendingRatio > 0)
       .sort((a, b) => b.trendingRatio - a.trendingRatio)
-  } catch (error: any) {
-    console.error('Failed to fetch trending articles:', error.response?.status, error.response?.data || error);
+  } catch (error: unknown) {
+    console.error('Failed to fetch trending articles:', (error as { response?: { status?: number; data?: unknown } }).response?.status, (error as { response?: { data?: unknown } }).response?.data || error);
     throw error;
   }
 };

@@ -1,7 +1,7 @@
 import { useThemeContext } from '@/context/ThemeProvider';
 import { useVisitedArticles } from '@/hooks';
 import React, { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, Platform, ScrollView, View } from 'react-native';
 import { Appbar, Button, Card, Divider, Menu, Text, useTheme } from 'react-native-paper';
 
 export default function SettingsScreen() {
@@ -27,39 +27,66 @@ export default function SettingsScreen() {
   };
 
   const handleResetReadingHistory = () => {
-    Alert.alert(
-      'Reset Reading History',
-      'Are you sure you want to clear your reading history? This action cannot be undone and will affect your personalized recommendations.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            setIsResetting(true);
-            try {
-              await clearVisitedArticles();
-              Alert.alert(
-                'Success',
-                'Your reading history has been cleared successfully.',
-                [{ text: 'OK' }]
-              );
-            } catch {
-              Alert.alert(
-                'Error',
-                'Failed to clear reading history. Please try again.',
-                [{ text: 'OK' }]
-              );
-            } finally {
-              setIsResetting(false);
-            }
+    const isHistoryEmpty = visitedArticles.length === 0;
+    if (isHistoryEmpty) {
+      // If history is empty, no need to show confirmation or proceed
+      return;
+    }
+
+    const confirmAction = () => {
+      setIsResetting(true);
+      clearVisitedArticles()
+        .then(() => {
+          if (Platform.OS === 'web') {
+            alert('Your reading history has been cleared successfully.');
+          } else {
+            Alert.alert(
+              'Success',
+              'Your reading history has been cleared successfully.',
+              [{ text: 'OK' }]
+            );
+          }
+        })
+        .catch(() => {
+          if (Platform.OS === 'web') {
+            alert('Failed to clear reading history. Please try again.');
+          } else {
+            Alert.alert(
+              'Error',
+              'Failed to clear reading history. Please try again.',
+              [{ text: 'OK' }]
+            );
+          }
+        })
+        .finally(() => {
+          setIsResetting(false);
+        });
+    };
+
+    if (Platform.OS === 'web') {
+      const isConfirmed = confirm(
+        'Are you sure you want to clear your reading history? This action cannot be undone and will affect your personalized recommendations.'
+      );
+      if (isConfirmed) {
+        confirmAction();
+      }
+    } else {
+      Alert.alert(
+        'Reset Reading History',
+        'Are you sure you want to clear your reading history? This action cannot be undone and will affect your personalized recommendations.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
           },
-        },
-      ]
-    );
+          {
+            text: 'Reset',
+            style: 'destructive',
+            onPress: confirmAction,
+          },
+        ]
+      );
+    }
   };
 
   return (

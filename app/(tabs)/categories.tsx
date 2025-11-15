@@ -1,5 +1,5 @@
-import { Image } from "expo-image";
 import { FlashList } from '@shopify/flash-list';
+import { Image } from "expo-image";
 import { router } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
@@ -53,7 +53,7 @@ export default function CategoriesScreen() {
         elevation: 1,
         overflow: 'hidden',
       }}
-      onPress={() => router.push(`/(zCategoryStack)/${encodeURIComponent(item[0])}`)}
+      onPress={() => router.push(`/subcategory/${encodeURIComponent(item[0])}`)}
       accessibilityRole="button"
       accessibilityLabel={`Browse ${item[0]} category`}
       accessibilityHint={`Opens articles in the ${item[0]} category`}

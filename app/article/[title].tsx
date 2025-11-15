@@ -1,16 +1,15 @@
 import { fetchArticleThumbnail } from '@/api/articles/fetchArticleThumbnail';
+import { SearchOverlay } from '@/components';
 import Article from '@/components/article/Article';
-import CustomBottomNav from '@/components/layout/CustomBottomNav';
+import ArticleHeader from '@/components/article/ArticleHeader';
+import ArticleImageModal from '@/components/article/ArticleImageModal';
+import { useArticle, useBookmarks, useVisitedArticles } from '@/hooks';
 import { ImageThumbnail } from '@/types';
+import { shareArticle } from '@/utils/shareUtils';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import { SearchOverlay } from '../../components';
-import ArticleHeader from '../../components/article/ArticleHeader';
-import ArticleImageModal from '../../components/article/ArticleImageModal';
-import { useArticle, useBookmarks, useVisitedArticles } from '../../hooks';
-import { shareArticle } from '../../utils/shareUtils';
 
 export default function ArticleScreen() {
   const theme = useTheme();
@@ -115,7 +114,6 @@ export default function ArticleScreen() {
             />
             <Article title={title as string} />
           </View>
-          <CustomBottomNav />
         </View>
       )}
       

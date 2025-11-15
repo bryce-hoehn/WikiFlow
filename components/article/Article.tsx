@@ -1,50 +1,12 @@
 import { useArticleHtml } from "@/hooks";
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Linking, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
-import RenderHtml, { HTMLContentModel, HTMLElementModel } from 'react-native-render-html';
-import { getArticleClassStyles, getArticleTagStyles } from '../../utils/articleStyles';
 import ScrollToTopFAB from '../common/ScrollToTopFAB';
-import ArticleImageModal from './ArticleImageModal';
-import { CaptionRenderer, ImageRenderer, useDomVisitors } from './ArticleRenderers';
+import ArticleSectionedRenderer from './ArticleSectionedRenderer';
 
-// Optimized article content component with performance improvements
-const ArticleContent = React.memo(({
-  articleHtml,
-  renderConfig,
-  fontSize
-}: {
-  articleHtml: string;
-  renderConfig: any;
-  fontSize: number;
-}) => (
-  <RenderHtml
-    contentWidth={renderConfig.width}
-    source={{ html: articleHtml || '' }}
-    tagsStyles={renderConfig.tagsStyles}
-    classesStyles={renderConfig.classesStyles}
-    renderersProps={renderConfig.renderersProps}
-    renderers={renderConfig.renderers}
-    domVisitors={renderConfig.domVisitors}
-    customHTMLElementModels={renderConfig.customHTMLElementModels}
-    enableExperimentalMarginCollapsing={true}
-    ignoredDomTags={['link', 'meta', 'map', 'video', 'audio', 'script', 'style', 'noscript']}
-    enableExperimentalBRCollapsing={true}
-    defaultTextProps={{selectable: true}}
-    // Performance optimizations
-    computeEmbeddedMaxWidth={() => renderConfig.width - 32} // Account for padding
-    systemFonts={['Arial', 'Courier New', 'Georgia']} // Limit font loading
-    // Reduce re-renders
-    key={articleHtml?.substring(0, 100)} // Use content-based key for better caching
-    baseStyle={{
-      userSelect: 'text',
-      fontSize: fontSize,
-      lineHeight: fontSize * 1.5,
-    }}
-  />
-));
-ArticleContent.displayName = 'ArticleContent';
+/* ArticleContent removed — using ArticleSectionedRenderer for article rendering */
 
 interface ArticleProps {
   title?: string;
@@ -57,12 +19,14 @@ interface ImageModalState {
 
 export default function Article({ title }: ArticleProps) {
   const theme = useTheme();
-  const { width } = useWindowDimensions();
   const { data: articleHtml, isLoading, error } = useArticleHtml(title || '');
-  const [imageModalState, setImageModalState] = useState<ImageModalState>({
-    visible: false,
-    selectedImage: null
-  });
+
+  // Pre-process HTML to remove <style> tags, which can render as text
+  const cleanedArticleHtml = useMemo(() => {
+    if (!articleHtml) return '';
+    // Regex to remove <style>...</style> blocks globally and case-insensitively
+    return articleHtml.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+  }, [articleHtml]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [fabVisible, setFabVisible] = useState(false);
   const [fontSize] = useState(16); // Base font size
@@ -88,7 +52,7 @@ export default function Article({ title }: ArticleProps) {
       articleTitle = articleTitle.split('#')[0].split('?')[0];
       
       if (articleTitle) {
-        router.push(`/(zArticleStack)/${articleTitle}`);
+        router.push(`/article/${articleTitle}`);
         return; // Prevent default behavior
       }
     }
@@ -97,15 +61,7 @@ export default function Article({ title }: ArticleProps) {
     Linking.openURL(href).catch(console.error);
   }, []);
 
-  // Optimized: Calculate styles once and reuse them
-  const { tagsStyles, classesStyles } = useMemo(() => {
-    const baseTagsStyles = getArticleTagStyles(theme);
-    const classesStyles = getArticleClassStyles(theme);
-    return {
-      tagsStyles: baseTagsStyles as any,
-      classesStyles: classesStyles as any
-    };
-  }, [theme]);
+  // Styles handled inside ArticleSectionedRenderer now; removed unused renderConfig
 
   // // Zoom controls
   // const increaseFontSize = useCallback(() => {
@@ -120,62 +76,8 @@ export default function Article({ title }: ArticleProps) {
   //   setFontSize(16); // Reset to default
   // }, []);
 
-  const handleImagePress = useCallback((image: { uri: string; alt?: string }) => {
-    setImageModalState({
-      visible: true,
-      selectedImage: image
-    });
-  }, []);
 
-  const handleCloseImageModal = useCallback(() => {
-    setImageModalState({
-      visible: false,
-      selectedImage: null
-    });
-  }, []);
 
-  // Get DOM visitors from worklet hook
-  const domVisitors = useDomVisitors();
-
-  // Optimized: Combine all render-related configurations into a single memo
-  const { renderConfig } = useMemo(() => {
-    const renderersProps = {
-      a: {
-        onPress: (event: any, href: string) => {
-          handleLinkPress(href);
-        },
-      }
-    };
-
-    const renderers = {
-      img: (props: any) => <ImageRenderer {...props} onImagePress={handleImagePress} />,
-      caption: CaptionRenderer
-    };
-
-    const customHTMLElementModels = {
-      caption: HTMLElementModel.fromCustomModel({
-        tagName: 'caption',
-        contentModel: HTMLContentModel.block
-      })
-    };
-
-    const renderConfig = {
-      width,
-      tagsStyles,
-      classesStyles,
-      renderersProps,
-      renderers,
-      domVisitors,
-      customHTMLElementModels
-    };
-
-    return {
-      renderersProps,
-      renderers,
-      customHTMLElementModels,
-      renderConfig
-    };
-  }, [width, tagsStyles, classesStyles, handleLinkPress, handleImagePress, domVisitors]);
 
 
   // Render states
@@ -259,19 +161,10 @@ export default function Article({ title }: ArticleProps) {
         contentInsetAdjustmentBehavior="automatic"
       >
         <View style={{ padding: 16 }}>
-          <ArticleContent
-            articleHtml={articleHtml || ''}
-            renderConfig={renderConfig}
-            fontSize={fontSize}
-          />
+          <ArticleSectionedRenderer articleHtml={cleanedArticleHtml} baseFontSize={fontSize} />
         </View>
       </ScrollView>
       <ScrollToTopFAB scrollRef={scrollViewRef} visible={fabVisible} />
-      <ArticleImageModal
-        visible={imageModalState.visible}
-        selectedImage={imageModalState.selectedImage}
-        onClose={handleCloseImageModal}
-      />
     </>
   );
 }

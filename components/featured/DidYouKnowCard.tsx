@@ -4,12 +4,14 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { memo, useCallback } from 'react';
 import { View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { Card, MD3Theme, Text } from 'react-native-paper';
+
+import { DidYouKnowItem } from '../../types/api/featured';
 
 interface DidYouKnowCardProps {
-  item: any;
+  item: DidYouKnowItem;
   itemWidth: number;
-  theme: any;
+  theme: MD3Theme;
 }
 
 function DidYouKnowCard({ item, itemWidth, theme }: DidYouKnowCardProps) {
@@ -22,7 +24,7 @@ function DidYouKnowCard({ item, itemWidth, theme }: DidYouKnowCardProps) {
   // Handle card press - navigate to article if title is available
   const handleCardPress = useCallback(() => {
     if (title && title !== 'Did You Know?') {
-      router.push(`/(zArticleStack)/${encodeURIComponent(title)}`);
+      router.push(`/article/${encodeURIComponent(title)}`);
     }
   }, [title]);
 

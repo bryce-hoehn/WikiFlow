@@ -1,5 +1,5 @@
 import { FeaturedContentResponse } from '../../types/api';
-import { restAxiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 /**
  * Fetches featured content from Wikipedia using the Featured Feed API
@@ -16,13 +16,13 @@ export const fetchFeaturedContent = async (): Promise<FeaturedContentResponse> =
     const url = `/feed/v1/wikipedia/en/featured/${formattedDate}`;
     
     try {
-      const response = await restAxiosInstance.get(url, {
+      const response = await axiosInstance.get(url, {
         baseURL: WIKIPEDIA_API_CONFIG.WIKIMEDIA_BASE_URL,
-        timeout: 10000, // 10 second timeout
+        // Uses centralized 8s timeout from axiosInstance
       });
       return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 504 || error.code === 'ECONNABORTED') {
+    } catch (error: unknown) {
+      if ((error as { response?: { status?: number }; code?: string }).response?.status === 504 || (error as { code?: string }).code === 'ECONNABORTED') {
         return null;
       }
       throw error;
@@ -49,8 +49,8 @@ export const fetchFeaturedContent = async (): Promise<FeaturedContentResponse> =
     return {
       data,
     };
-  } catch (error: any) {
-    console.error('Failed to fetch featured content:', error.response?.status, error.response?.data || error);
+  } catch (error: unknown) {
+    console.error('Failed to fetch featured content:', (error as { response?: { status?: number; data?: unknown } }).response?.status, (error as { response?: { data?: unknown } }).response?.data || error);
     throw error;
   }
 };

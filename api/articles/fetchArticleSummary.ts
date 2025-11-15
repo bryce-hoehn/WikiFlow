@@ -1,6 +1,6 @@
 import { Article, ArticleResponse } from '../../types/api';
 import { isAxiosError } from '../../types/api/base';
-import { restAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 /**
  * Fetch a Wikipedia article summary by title
@@ -16,8 +16,9 @@ export const fetchArticleSummary = async (title: string): Promise<ArticleRespons
       .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
     
     
-    const response = await restAxiosInstance.get<Article>(`/page/summary/${encodeURIComponent(cleanTitle)}`, {
-      timeout: 10000, // 10 second timeout
+    const response = await axiosInstance.get<Article>(`/page/summary/${encodeURIComponent(cleanTitle)}`, {
+      baseURL: WIKIPEDIA_API_CONFIG.REST_API_BASE_URL,
+      // Uses centralized 8s timeout from axiosInstance
     });
     
     return { article: response.data };

@@ -1,4 +1,4 @@
-import { actionAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 interface LinksResponse {
   query: {
@@ -22,7 +22,8 @@ interface LinksResponse {
  */
 export const fetchArticleLinks = async (articleTitle: string): Promise<string[]> => {
   try {
-    const response = await actionAxiosInstance.get<LinksResponse>('', {
+    const response = await axiosInstance.get<LinksResponse>('', {
+      baseURL: WIKIPEDIA_API_CONFIG.BASE_URL,
       params: {
         action: 'query',
         prop: 'links',
@@ -60,8 +61,8 @@ export const fetchArticleLinks = async (articleTitle: string): Promise<string[]>
       })
       .map(link => link.title);
 
-  } catch (error: any) {
-    console.error(`Failed to fetch forward links for ${articleTitle}:`, error.response?.status, error.response?.data || error);
+  } catch (error: unknown) {
+    console.error(`Failed to fetch forward links for ${articleTitle}:`, (error as { response?: { status?: number; data?: unknown } }).response?.status, (error as { response?: { data?: unknown } }).response?.data || error);
     return [];
   }
 };

@@ -1,11 +1,13 @@
 import type { ImageThumbnail } from '@/types/api/base';
-import { restAxiosInstance } from '../shared';
+import { axiosInstance, WIKIPEDIA_API_CONFIG } from '../shared';
 
 export const fetchArticleThumbnail = async (title: string): Promise<ImageThumbnail | null> => {
   try {
     // Use Wikipedia REST API to fetch page summary including thumbnail
     const url = `/page/summary/${encodeURIComponent(title)}`;
-    const response = await restAxiosInstance.get(url);
+    const response = await axiosInstance.get(url, {
+      baseURL: WIKIPEDIA_API_CONFIG.REST_API_BASE_URL
+    });
 
     const data = response.data;
 
@@ -15,8 +17,8 @@ export const fetchArticleThumbnail = async (title: string): Promise<ImageThumbna
     }
 
     return null;
-  } catch (error: any) {
-    console.error(`Error fetching thumbnail for ${title}:`, error.response?.status, error.response?.data || error);
+  } catch (error: unknown) {
+    console.error(`Error fetching thumbnail for ${title}:`, (error as { response?: { status?: number; data?: unknown } }).response?.status, (error as { response?: { data?: unknown } }).response?.data || error);
     return null;
   }
 };

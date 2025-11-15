@@ -4,12 +4,14 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { memo, useCallback } from 'react';
 import { View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { Card, MD3Theme, Text } from 'react-native-paper';
+
+import { RecommendationItem } from '../../types/components';
 
 interface GenericCardProps {
-  item: any;
+  item: RecommendationItem;
   itemWidth: number;
-  theme: any;
+  theme: MD3Theme;
 }
 
 function GenericCard({ item, itemWidth, theme }: GenericCardProps) {
@@ -18,13 +20,13 @@ function GenericCard({ item, itemWidth, theme }: GenericCardProps) {
   // Handle card press - navigate to article if available
   const handleCardPress = useCallback(() => {
     if (item?.articleTitle) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.articleTitle)}`);
+      router.push(`/article/${encodeURIComponent(item.articleTitle)}`);
     } else if (item?.page?.title) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.page.title)}`);
+      router.push(`/article/${encodeURIComponent(item.page.title)}`);
     } else if (item?.title && item.title !== 'Did You Know?' && !item.title.includes('...')) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.title)}`);
+      router.push(`/article/${encodeURIComponent(item.title)}`);
     } else if (item?.pageid) {
-      router.push(`/(zArticleStack)/${encodeURIComponent(item.title || '')}`);
+      router.push(`/article/${encodeURIComponent(item.title || '')}`);
     }
   }, [item?.articleTitle, item?.page?.title, item?.title, item?.pageid]);
 

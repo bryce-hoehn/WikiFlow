@@ -14,6 +14,24 @@ export interface RecommendationItem {
   description?: string;
   thumbnail?: ImageThumbnail;
   pageid?: number;
+  // Additional properties for compatibility with various data sources
+  articleTitle?: string;
+  page?: {
+    title: string;
+    thumbnail?: ImageThumbnail;
+  };
+  links?: {
+    title: string;
+    thumbnail?: ImageThumbnail;
+  }[];
+  pages?: {
+    title: string;
+    thumbnail?: ImageThumbnail;
+  }[];
+  story?: string;
+  html?: string;
+  text?: string;
+  year?: number;
 }
 
 /**
