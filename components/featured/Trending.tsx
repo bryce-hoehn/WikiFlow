@@ -5,7 +5,7 @@ import { IconButton, useTheme } from 'react-native-paper';
 import { SPACING } from '../../constants/spacing';
 import CardSkeleton from '../common/CardSkeleton';
 import StandardEmptyState from '../common/StandardEmptyState';
-import SimpleTrendingCarousel from './SimpleTrendingCarousel';
+import TrendingCarousel from './TrendingCarousel';
 
 interface TrendingListProps {
   maxItemsPerPage?: number;
@@ -74,7 +74,7 @@ export default function TrendingList({ maxItemsPerPage = 6 }: TrendingListProps)
     // Loop: if at first page, go to last page
     const newPage = currentPage === 0 ? memoizedPages.length - 1 : currentPage - 1;
     setCurrentPage(newPage);
-    carouselRef.current?.scrollToIndex({ index: newPage, animated: true });
+    // Note: The useEffect in TrendingCarousel will handle scrolling when currentPage changes
   };
 
   const handleNext = () => {
@@ -82,7 +82,7 @@ export default function TrendingList({ maxItemsPerPage = 6 }: TrendingListProps)
     // Loop: if at last page, go to first page
     const newPage = currentPage === memoizedPages.length - 1 ? 0 : currentPage + 1;
     setCurrentPage(newPage);
-    carouselRef.current?.scrollToIndex({ index: newPage, animated: true });
+    // Note: The useEffect in TrendingCarousel will handle scrolling when currentPage changes
   };
 
   // Handle loading state with skeletons
@@ -109,23 +109,16 @@ export default function TrendingList({ maxItemsPerPage = 6 }: TrendingListProps)
     );
   }
 
-  // Calculate marginTop to match year header height + marginBottom
-  // titleLarge typically has ~28px line height, plus SPACING.md (12px) marginBottom = ~40px
-  const yearHeaderHeight = 28; // Approximate titleLarge line height
-  const yearHeaderMargin = SPACING.md; // marginBottom from BaseFeaturedCard
-  const marginTop = yearHeaderHeight + yearHeaderMargin;
-
   return (
     <View
       style={{
         position: 'relative',
         backgroundColor: theme.colors.background,
         width: '100%',
-        marginTop: marginTop,
       }}
       onLayout={handleLayout}
     >
-      <SimpleTrendingCarousel
+      <TrendingCarousel
         ref={carouselRef}
         memoizedPages={memoizedPages}
         itemWidth={itemWidth}

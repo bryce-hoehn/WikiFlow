@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
+import { SPACING } from '../../constants/spacing';
 
 interface LoadingFooterProps {
   loading: boolean;
@@ -14,11 +15,11 @@ export default function LoadingFooter({ loading }: LoadingFooterProps) {
   return (
     <View
       style={{
-        padding: 24,
+        padding: SPACING.lg, // M3: 24dp padding
         alignItems: 'center',
         flexDirection: 'row',
         justifyContent: 'center',
-        gap: 12,
+        gap: SPACING.md, // M3: 12dp gap
       }}
     >
       <ActivityIndicator size="small" color={theme.colors.primary} />

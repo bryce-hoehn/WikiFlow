@@ -7,6 +7,8 @@ import CollapsibleHeader, {
 import AppSidebar from '@/components/layout/AppSidebar';
 import ArticleDrawerWrapper from '@/components/layout/ArticleDrawerWrapper';
 import ContentWithSidebar from '@/components/layout/ContentWithSidebar';
+import { SPACING } from '@/constants/spacing';
+import { TYPOGRAPHY } from '@/constants/typography';
 import { useArticle, useBookmarks, useVisitedArticles } from '@/hooks';
 import { ImageThumbnail } from '@/types';
 import { shareArticle } from '@/utils/shareUtils';
@@ -17,8 +19,8 @@ import { ActivityIndicator, Appbar, ProgressBar, Text, useTheme } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSnackbar } from '../../context/SnackbarContext';
 
-// Lazy load ArticleImageModal - only needed when user opens an image
-const ArticleImageModal = React.lazy(() => import('@/components/article/ArticleImageModal'));
+// Lazy load ImageDialog - only needed when user opens an image
+const ImageDialog = React.lazy(() => import('@/components/article/ImageDialog'));
 
 const HEADER_HEIGHT = 60;
 
@@ -43,39 +45,51 @@ export default function ArticleScreen() {
 
   // Fetch thumbnail when title changes - defer to avoid blocking navigation
   useEffect(() => {
+    if (!title) {
+      setThumbnail(undefined);
+      setIsLoadingThumbnail(false);
+      return;
+    }
+
+    // Defer thumbnail fetch until after initial render and interactions complete
     const fetchThumbnail = async () => {
-      if (title) {
-        setIsLoadingThumbnail(true);
-        // Use setTimeout to yield to the UI thread for navigation
-        setTimeout(async () => {
-          try {
-            const thumbnail = await fetchArticleThumbnail(title as string);
-            setThumbnail(thumbnail as unknown as ImageThumbnail);
-          } catch (error) {
-            if (typeof __DEV__ !== 'undefined' && __DEV__) {
-              console.error('Failed to fetch thumbnail:', error);
-            }
-          } finally {
-            setIsLoadingThumbnail(false);
-          }
-        }, 100);
-      } else {
-        setThumbnail(undefined);
+      setIsLoadingThumbnail(true);
+      try {
+        const thumbnail = await fetchArticleThumbnail(title as string);
+        setThumbnail(thumbnail as unknown as ImageThumbnail);
+      } catch (error) {
+        // Error is already logged by fetchArticleThumbnail in dev mode
+        // Silently handle thumbnail fetch failures - article can still be displayed
+      } finally {
         setIsLoadingThumbnail(false);
       }
     };
 
-    fetchThumbnail();
+    // Use requestIdleCallback on web, InteractionManager on native, or setTimeout as fallback
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(fetchThumbnail, { timeout: 2000 });
+    } else {
+      // Defer to next frame + small delay to let UI render first
+      setTimeout(fetchThumbnail, 300);
+    }
   }, [title]);
 
   // Track article visit when article data is loaded (only once per article) - defer to avoid blocking
   useEffect(() => {
     if (article && title && !hasTrackedVisit.current) {
-      // Use setTimeout to yield to the UI thread for navigation
-      setTimeout(() => {
+      // Defer visit tracking until after interactions complete
+      const trackVisit = () => {
         addVisitedArticle(title as string);
         hasTrackedVisit.current = true;
-      }, 200);
+      };
+
+      // Use requestIdleCallback on web, InteractionManager on native, or setTimeout as fallback
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(trackVisit, { timeout: 3000 });
+      } else {
+        // Defer to allow UI to render first
+        setTimeout(trackVisit, 500);
+      }
     }
   }, [article, title, addVisitedArticle]);
 
@@ -146,19 +160,36 @@ export default function ArticleScreen() {
                           flex: 1,
                           flexDirection: 'row',
                           alignItems: 'center',
-                          marginLeft: 8,
+                          marginLeft: SPACING.sm,
                         }}
                       >
-                        <Text style={{ fontWeight: '700', fontSize: 20, flex: 1 }}>Loading...</Text>
+                        <Text
+                        style={{
+                          // MD3: Small app bars use 22sp title
+                          // Reference: https://m3.material.io/components/app-bars/overview
+                          fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+                          fontSize: TYPOGRAPHY.appBarTitle,
+                          flex: 1,
+                        }}
+                      >
+                        Loading...
+                      </Text>
                         <ActivityIndicator
                           size="small"
                           color={theme.colors.primary}
-                          style={{ marginRight: 8 }}
+                          style={{ marginRight: SPACING.sm }}
                         />
                       </View>
                     ) : (
                       <Text
-                        style={{ flex: 1, marginLeft: 8, fontWeight: '700', fontSize: 20 }}
+                        style={{
+                          // MD3: Small app bars use 22sp title
+                          // Reference: https://m3.material.io/components/app-bars/overview
+                          flex: 1,
+                          marginLeft: SPACING.sm,
+                          fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+                          fontSize: 22, // 22sp per MD3 specification
+                        }}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
@@ -237,7 +268,7 @@ export default function ArticleScreen() {
 
       {showImageModal && (
         <Suspense fallback={null}>
-          <ArticleImageModal
+          <ImageDialog
             visible={showImageModal}
             selectedImage={selectedImage}
             onClose={handleCloseImageModal}

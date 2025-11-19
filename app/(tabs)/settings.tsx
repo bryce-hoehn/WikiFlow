@@ -1,8 +1,10 @@
-import ProgressModal from '@/components/common/ProgressModal';
+import ProgressDialog from '@/components/common/ProgressDialog';
 import { LAYOUT } from '@/constants/layout';
+import { SPACING } from '@/constants/spacing';
+import { TYPOGRAPHY } from '@/constants/typography';
 import { useBookmarks } from '@/context/BookmarksContext';
 import { useThemeContext } from '@/context/ThemeProvider';
-import { useNsfwFilter, useReducedMotion, useVisitedArticles } from '@/hooks';
+import { useReducedMotion, useVisitedArticles } from '@/hooks';
 import {
   exportUserProfile,
   importUserProfile,
@@ -30,7 +32,6 @@ export default function SettingsScreen() {
   const { width } = useWindowDimensions();
   const { currentTheme, setTheme } = useThemeContext();
   const { visitedArticles, loadVisitedArticles } = useVisitedArticles();
-  const { setNsfwFilterEnabled } = useNsfwFilter();
   const { reducedMotion, setReducedMotion } = useReducedMotion();
   const { showSuccess, showError } = useSnackbar();
   const { bookmarks, loadBookmarks } = useBookmarks();
@@ -124,9 +125,6 @@ export default function SettingsScreen() {
                 if (result.theme !== null) {
                   await setTheme(result.theme);
                 }
-                if (result.nsfwFilterEnabled !== null) {
-                  await setNsfwFilterEnabled(result.nsfwFilterEnabled);
-                }
 
                 setImportProgress(0.95);
                 const parts: string[] = [];
@@ -140,11 +138,7 @@ export default function SettingsScreen() {
                     `${result.visitedArticles.length} history item${result.visitedArticles.length !== 1 ? 's' : ''}`
                   );
                 }
-                if (
-                  result.theme !== null ||
-                  result.nsfwFilterEnabled !== null ||
-                  result.fontSize !== null
-                ) {
+                if (result.theme !== null || result.fontSize !== null) {
                   parts.push('settings');
                 }
 
@@ -202,9 +196,6 @@ export default function SettingsScreen() {
           if (importResult.theme !== null) {
             await setTheme(importResult.theme);
           }
-          if (importResult.nsfwFilterEnabled !== null) {
-            await setNsfwFilterEnabled(importResult.nsfwFilterEnabled);
-          }
 
           setImportProgress(0.95);
           const parts: string[] = [];
@@ -218,11 +209,7 @@ export default function SettingsScreen() {
               `${importResult.visitedArticles.length} history item${importResult.visitedArticles.length !== 1 ? 's' : ''}`
             );
           }
-          if (
-            importResult.theme !== null ||
-            importResult.nsfwFilterEnabled !== null ||
-            importResult.fontSize !== null
-          ) {
+          if (importResult.theme !== null || importResult.fontSize !== null) {
             parts.push('settings');
           }
 
@@ -270,8 +257,10 @@ export default function SettingsScreen() {
         <Appbar.Content
           title="Settings"
           titleStyle={{
-            fontWeight: '700',
-            fontSize: 20,
+            // MD3: Center-aligned app bars use 22sp title
+            // Reference: https://m3.material.io/components/app-bars/overview
+            fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+            fontSize: TYPOGRAPHY.appBarTitle,
           }}
         />
         <Appbar.Action
@@ -288,9 +277,9 @@ export default function SettingsScreen() {
           onDismiss={() => setHelpVisible(false)}
           contentContainerStyle={{
             backgroundColor: theme.colors.surface,
-            padding: 24,
-            margin: 20,
-            borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+            padding: SPACING.lg, // M3: 24dp padding for dialogs
+            margin: SPACING.base + SPACING.xs, // M3: 20dp margin
+            borderRadius: width >= LAYOUT.DESKTOP_BREAKPOINT ? 28 : SPACING.base, // M3: 28dp for large screens, 16dp for mobile
           }}
         >
           <Text variant="headlineSmall" style={{ marginBottom: 16, fontWeight: '700' }}>
@@ -317,7 +306,7 @@ export default function SettingsScreen() {
           </Button>
         </Modal>
 
-        <ProgressModal
+        <ProgressDialog
           visible={isExporting}
           progress={exportProgress}
           message="Exporting user profile..."
@@ -329,7 +318,7 @@ export default function SettingsScreen() {
           cancelLabel="Cancel"
         />
 
-        <ProgressModal
+        <ProgressDialog
           visible={isImporting}
           progress={importProgress}
           message="Importing user profile..."
@@ -345,8 +334,8 @@ export default function SettingsScreen() {
       <ScrollView
         style={{ backgroundColor: theme.colors.background }}
         contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 32,
+          padding: SPACING.base,
+          paddingBottom: SPACING.xl,
           maxWidth: maxContentWidth,
           alignSelf: 'center',
           width: '100%',
@@ -383,20 +372,6 @@ export default function SettingsScreen() {
               />
             ))}
           </Menu>
-          {/* Temporarily commented out - NSFW filter disabled by default */}
-          {/* <List.Item
-            title="Hide Sensitive Content"
-            description="Blur sensitive images until tapped. Uses Wikipedia's official content filter list. Note: The official filter list may not be all inclusive."
-            left={(props) => <List.Icon {...props} icon="eye-off" />}
-            right={() => (
-              <Switch
-                value={isNsfwFilterEnabled}
-                onValueChange={setNsfwFilterEnabled}
-              />
-            )}
-            titleStyle={{ fontWeight: '500' }}
-            descriptionNumberOfLines={3}
-          /> */}
         </List.Section>
 
         <Divider style={{ marginVertical: 8 }} />
@@ -451,7 +426,7 @@ export default function SettingsScreen() {
             titleStyle={{ fontWeight: '500' }}
             descriptionNumberOfLines={2}
           />
-          <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+          <View style={{ paddingHorizontal: SPACING.base, paddingBottom: SPACING.base }}>
             <Text
               variant="bodySmall"
               style={{

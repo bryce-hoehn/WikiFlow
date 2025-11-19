@@ -2,6 +2,7 @@ import { FlashList } from '@shopify/flash-list';
 import React, { useState } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Chip, IconButton, useTheme } from 'react-native-paper';
+import { TYPOGRAPHY } from '../../constants/typography';
 import { Bookmark } from '../../types/bookmarks';
 
 interface BookmarkTagFilterProps {
@@ -78,7 +79,7 @@ export default function BookmarkTagFilter({
       selected={selectedTag === item.tag}
       onPress={() => onTagChange(item.tag)}
       style={styles.chip}
-      textStyle={{ fontSize: 14 }}
+      textStyle={{ fontSize: TYPOGRAPHY.bodyMedium }}
       mode="flat"
       compact
     >
@@ -97,7 +98,7 @@ export default function BookmarkTagFilter({
                 selected={selectedTag === item.tag}
                 onPress={() => onTagChange(item.tag)}
                 style={styles.chip}
-                textStyle={{ fontSize: 14 }}
+                textStyle={{ fontSize: TYPOGRAPHY.bodyMedium }}
                 mode="flat"
                 compact
               >
@@ -167,7 +168,6 @@ export default function BookmarkTagFilter({
           keyExtractor={(item) => item.tag || 'all'}
           horizontal
           showsHorizontalScrollIndicator={false}
-          estimatedItemSize={100}
           contentContainerStyle={styles.chipContainer}
         />
       )}

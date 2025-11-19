@@ -1,10 +1,12 @@
-import { FlashList } from '@shopify/flash-list';
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { Card, List, useTheme } from 'react-native-paper';
+import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel';
+import { useReducedMotion } from '../../hooks';
 import TrendingListItem from './TrendingListItem';
 
-interface SimpleTrendingCarouselProps {
+interface TrendingCarouselProps {
+  ref?: React.Ref<any>;
   memoizedPages: any[][];
   itemWidth: number;
   itemsPerPage: number;
@@ -12,58 +14,77 @@ interface SimpleTrendingCarouselProps {
   currentPage: number;
 }
 
-const SimpleTrendingCarousel = React.forwardRef<any, SimpleTrendingCarouselProps>(
-  ({ memoizedPages, itemWidth, itemsPerPage, onPageChange, currentPage }, ref) => {
-    const theme = useTheme();
-    const flashListRef = useRef<any>(null);
+// React 19: ref is now a regular prop, no need for forwardRef
+function TrendingCarousel({
+  ref,
+  memoizedPages,
+  itemWidth,
+  itemsPerPage,
+  onPageChange,
+  currentPage,
+}: TrendingCarouselProps) {
+  const theme = useTheme();
+  const { reducedMotion } = useReducedMotion();
+  const carouselRef = useRef<ICarouselInstance>(null);
 
-    // Expose scrollToIndex method via ref
-    React.useImperativeHandle(ref, () => ({
-      scrollToIndex: (params: { index: number; animated?: boolean }) => {
-        flashListRef.current?.scrollToIndex(params);
-      },
-    }));
+  // Expose scrollToIndex method via ref with looping support
+  React.useImperativeHandle(ref, () => ({
+    scrollToIndex: (params: { index: number; animated?: boolean }) => {
+      if (carouselRef.current && memoizedPages.length > 0) {
+        const normalizedIndex = ((params.index % memoizedPages.length) + memoizedPages.length) % memoizedPages.length;
+        carouselRef.current.scrollTo({ index: normalizedIndex, animated: params.animated ?? true });
+      }
+    },
+  }));
 
     // Scroll to page when currentPage changes externally
     useEffect(() => {
-      if (flashListRef.current && currentPage !== undefined) {
-        flashListRef.current.scrollToIndex({ index: currentPage, animated: true });
+      if (carouselRef.current && currentPage !== undefined && memoizedPages.length > 0) {
+        const normalizedIndex = ((currentPage % memoizedPages.length) + memoizedPages.length) % memoizedPages.length;
+        carouselRef.current.scrollTo({ index: normalizedIndex, animated: true });
       }
-    }, [currentPage]);
+    }, [currentPage, memoizedPages.length]);
 
-    // Fixed height to match carousel cards (410px)
     const containerHeight = 410;
 
-    const renderPage = ({ item: pageItems, index: pageIndex }: { item: any[]; index: number }) => {
-      // Account for padding when calculating card width
-      const cardWidth = itemWidth - 12; // 4px left + 8px right padding
+    const renderPage = useCallback(
+      ({ item: pageItems, index: pageIndex }: { item: any[]; index: number }) => {
+        const cardWidth = itemWidth - 12;
       
       return (
         <View 
-          style={{ width: itemWidth, height: containerHeight + 8, paddingLeft: 4, paddingRight: 8, paddingBottom: 4 }}
+            style={{
+              width: itemWidth,
+              height: containerHeight + 8,
+              paddingLeft: 4,
+              paddingRight: 8,
+              paddingBottom: 4,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
         >
           <Card
-            elevation={2}
+            elevation={1} // M3: Default elevation 1dp
             style={{
               width: cardWidth,
-              height: containerHeight + 8, // Slightly taller to accommodate padding (418px total)
+                height: containerHeight + 8,
               backgroundColor: theme.colors.elevation.level2,
-              borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+                borderRadius: theme.roundness * 3, // M3: 12dp corner radius (4dp * 3)
               overflow: 'hidden',
             }}
             contentStyle={{
               padding: 0,
-              paddingBottom: 0, // No padding, List.Section handles all spacing
+                paddingBottom: 0,
               height: containerHeight + 8,
             }}
           >
           <List.Section
             style={{
-              height: containerHeight + 8, // Match Card height to accommodate content + padding
+                  height: containerHeight + 8,
               backgroundColor: 'transparent',
               paddingVertical: 0,
-              paddingTop: 0, // Remove any default top padding
-              paddingBottom: 10, // Padding to prevent last item from being cut off (418px - 10px = 408px for content)
+                  paddingTop: 0,
+                  paddingBottom: 10,
               marginTop: 0,
               marginBottom: 0,
             }}
@@ -88,33 +109,27 @@ const SimpleTrendingCarousel = React.forwardRef<any, SimpleTrendingCarouselProps
         </Card>
       </View>
       );
-    };
+      },
+      [itemWidth, containerHeight, itemsPerPage, theme]
+    );
 
     return (
-      <FlashList
-        ref={flashListRef}
+      <Carousel
+        ref={carouselRef}
+        width={itemWidth}
+        height={containerHeight + 8}
         data={memoizedPages}
         renderItem={renderPage}
-        keyExtractor={(item, index) => `page-${index}`}
-        {...({ estimatedItemSize: itemWidth } as any)}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={itemWidth}
-        decelerationRate="fast"
-        pagingEnabled
-        contentContainerStyle={{
-          backgroundColor: theme.colors.background,
-        }}
+        loop={true}
+        enabled={!reducedMotion}
+        autoPlay={false}
+        scrollAnimationDuration={reducedMotion ? 0 : 300}
         style={{ backgroundColor: theme.colors.background }}
-        onMomentumScrollEnd={(event) => {
-          const pageIndex = Math.round(event.nativeEvent.contentOffset.x / itemWidth);
-          onPageChange(pageIndex);
+        onSnapToItem={(index) => {
+          onPageChange(index);
         }}
       />
     );
-  }
-);
+}
 
-SimpleTrendingCarousel.displayName = 'SimpleTrendingCarousel';
-
-export default SimpleTrendingCarousel;
+export default TrendingCarousel;

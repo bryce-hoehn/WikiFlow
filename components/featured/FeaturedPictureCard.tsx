@@ -3,13 +3,11 @@ import { getHoverStyles } from '@/constants/motion';
 import { SPACING } from '@/constants/spacing';
 import { useFeaturedContent } from '@/context/FeaturedContentContext';
 import { useReducedMotion } from '@/hooks';
-import useBookmarkToggle from '@/hooks/ui/useBookmarkToggle';
-import { shareArticle } from '@/utils/shareUtils';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { Platform, useWindowDimensions, View } from 'react-native';
-import { Card, IconButton, TouchableRipple, useTheme } from 'react-native-paper';
-import ArticleImageModal from '../article/ArticleImageModal';
+import { Card, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import ImageDialog from '../article/ImageDialog';
 import HtmlRenderer from '../common/HtmlRenderer';
 
 export default function FeaturedImageCard() {
@@ -20,7 +18,6 @@ export default function FeaturedImageCard() {
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const { reducedMotion } = useReducedMotion();
-  const { handleBookmarkToggle, isBookmarked } = useBookmarkToggle();
 
   if (!img) {
     return null;
@@ -34,31 +31,11 @@ export default function FeaturedImageCard() {
   const imageHeight = 240;
   const contentHeight = 170;
 
-  const handleShare = async (e: any) => {
-    e?.stopPropagation?.(); // Prevent card navigation
-    try {
-      await shareArticle(img.title, img.description.text);
-    } catch (error) {
-      if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        console.error('Failed to share article:', error);
-      }
-    }
-  };
-
-  const handleBookmark = (e: any) => {
-    e?.stopPropagation?.(); // Prevent card navigation
-    handleBookmarkToggle({
-      title: img.title,
-      description: img.description.text,
-      thumbnail: img.image
-        ? {
-            source: img.image.source,
-            width: img.image.width,
-            height: img.image.height,
-          }
-        : undefined,
-    });
-  };
+  // Check if there's any description text content
+  const hasDescriptionText = Boolean(
+    (img.description?.html && img.description.html.trim().length > 0) ||
+    (img.description?.text && img.description.text.trim().length > 0)
+  );
 
   // Web-specific: Hover handlers
   const handleMouseEnter = () => {
@@ -76,7 +53,7 @@ export default function FeaturedImageCard() {
   return (
     <>
       <Card
-        elevation={isHovered && Platform.OS === 'web' ? 4 : 2}
+        elevation={isHovered && Platform.OS === 'web' ? 4 : 1} // M3: Default elevation 1dp, increases to 4dp on hover
         style={{
           width: '100%',
           height: cardHeight,
@@ -84,7 +61,7 @@ export default function FeaturedImageCard() {
             isHovered && Platform.OS === 'web'
               ? theme.colors.surface
               : theme.colors.elevation.level2,
-          borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+          borderRadius: theme.roundness * 3, // M3: 12dp corner radius (4dp * 3)
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -101,85 +78,61 @@ export default function FeaturedImageCard() {
             onPress={() => setImageModalVisible(true)}
             style={{
               width: '100%',
-              height: imageHeight,
+              height: hasDescriptionText ? imageHeight : cardHeight,
               overflow: 'hidden',
             }}
           >
-            <Image
-              source={{ uri: img.image.source }}
-              contentFit="cover"
+            <View
               style={{
                 width: '100%',
                 height: '100%',
-                borderTopLeftRadius: theme.roundness * 1.25,
-                borderTopRightRadius: theme.roundness * 1.25,
+                position: 'relative',
               }}
-              alt={`Thumbnail for ${img.title || 'Featured Picture'}`}
-            />
-          </TouchableRipple>
-        )}
-        <Card.Content
-          style={{
-            backgroundColor: theme.colors.elevation.level2,
-            height: contentHeight,
-            padding: SPACING.md,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: isSmallScreen ? 6 : 8,
-            }}
-          >
-            <View style={{ flex: 1 }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
-              <IconButton
-                icon="share-variant"
-                iconColor={theme.colors.onSurfaceVariant}
-                onPress={handleShare}
+            >
+              <Image
+                source={{ uri: img.image.source }}
+                contentFit="cover"
                 style={{
-                  margin: 0,
-                  backgroundColor: 'transparent',
+                  width: '100%',
+                  height: '100%',
+                  borderTopLeftRadius: hasDescriptionText ? theme.roundness * 1.25 : theme.roundness * 3,
+                  borderTopRightRadius: hasDescriptionText ? theme.roundness * 1.25 : theme.roundness * 3,
+                  borderBottomLeftRadius: hasDescriptionText ? 0 : theme.roundness * 3,
+                  borderBottomRightRadius: hasDescriptionText ? 0 : theme.roundness * 3,
                 }}
-                size={isSmallScreen ? 18 : 20}
-                accessibilityLabel={`Share ${img.title}`}
-                accessibilityHint="Shares this article with others"
-              />
-              <IconButton
-                icon={isBookmarked(img.title) ? 'bookmark' : 'bookmark-outline'}
-                iconColor={
-                  isBookmarked(img.title) ? theme.colors.primary : theme.colors.onSurfaceVariant
-                }
-                onPress={handleBookmark}
-                style={{
-                  margin: 0,
-                  backgroundColor: 'transparent',
-                }}
-                size={isSmallScreen ? 18 : 20}
-                accessibilityLabel={
-                  isBookmarked(img.title)
-                    ? `Remove ${img.title} from bookmarks`
-                    : `Add ${img.title} to bookmarks`
-                }
-                accessibilityHint={
-                  isBookmarked(img.title)
-                    ? 'Removes article from bookmarks'
-                    : 'Adds article to bookmarks'
-                }
+                alt={`Thumbnail for ${img.title || 'Featured Picture'}`}
               />
             </View>
-          </View>
-          <HtmlRenderer
-            html={img.description.html}
-            maxLines={4}
-            style={{ color: theme.colors.onSurface }}
-          />
-        </Card.Content>
+          </TouchableRipple>
+        )}
+        {hasDescriptionText && (
+          <Card.Content
+            style={{
+              backgroundColor: theme.colors.elevation.level2,
+              height: contentHeight,
+              padding: SPACING.md,
+            }}
+          >
+            {img.description?.html ? (
+              <HtmlRenderer
+                html={img.description.html}
+                maxLines={4}
+                style={{ color: theme.colors.onSurface }}
+              />
+            ) : img.description?.text ? (
+              <Text
+                variant="bodyMedium"
+                numberOfLines={4}
+                style={{ color: theme.colors.onSurface }}
+              >
+                {img.description.text}
+              </Text>
+            ) : null}
+          </Card.Content>
+        )}
       </Card>
 
-      <ArticleImageModal
+      <ImageDialog
         visible={imageModalVisible}
         selectedImage={{ uri: img.image.source, alt: img.title || 'Featured Picture' }}
         onClose={() => setImageModalVisible(false)}

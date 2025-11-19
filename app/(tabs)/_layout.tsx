@@ -6,13 +6,15 @@ import { LAYOUT } from '@/constants/layout';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= LAYOUT.DESKTOP_BREAKPOINT;
+  const insets = useSafeAreaInsets();
 
   // Common screen options
   const commonScreenOptions = {
@@ -38,6 +40,9 @@ export default function TabLayout() {
                 : {
                     backgroundColor: theme.colors.surface,
                     borderTopWidth: 0,
+                    // Add safe area padding for iOS PWA home indicator
+                    paddingBottom: Platform.OS === 'web' ? Math.max(insets.bottom, 8) : insets.bottom,
+                    height: 56 + (Platform.OS === 'web' ? Math.max(insets.bottom, 8) : insets.bottom),
                   },
             }}
           >

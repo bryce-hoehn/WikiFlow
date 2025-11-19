@@ -1,13 +1,13 @@
+import { WIKIPEDIA_API_CONFIG } from '@/api/shared';
 import { LAYOUT } from '@/constants/layout';
-import { SPACING } from '@/constants/spacing';
-import { useNsfwFilter } from '@/hooks';
+import { getRandomBlurhash } from '@/utils/blurhash';
 import { extractFilenameFromUrl } from '@/utils/imageAltText';
-import { isNsfwImage } from '@/utils/nsfwDetection';
-import { BlurView } from 'expo-blur';
+import { cacheUrlResolution, getCachedUrlResolution } from '@/utils/imageUrlCache';
+import { getOptimizedThumbnailUrl } from '@/utils/imageUtils';
 import { Image, ImageContentFit } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ImageStyle, useWindowDimensions, View } from 'react-native';
-import { Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { ImageStyle, Platform, useWindowDimensions, View } from 'react-native';
+import { TouchableRipple, useTheme } from 'react-native-paper';
 
 interface ResponsiveImageProps {
   source: {
@@ -18,8 +18,10 @@ interface ResponsiveImageProps {
   contentFit?: ImageContentFit;
   style?: ImageStyle;
   alt?: string;
-  title?: string; // Article title for NSFW detection
   onPress?: (image: { uri: string; alt?: string }) => void; // Callback when image is pressed
+  priority?: 'low' | 'normal' | 'high'; // Override default priority calculation
+  isAboveFold?: boolean; // Whether image is above the fold (visible without scrolling)
+  skipOptimization?: boolean; // If true, use the original thumbnail URL without optimization
 }
 
 const ResponsiveImage = React.memo(
@@ -28,30 +30,14 @@ const ResponsiveImage = React.memo(
     contentFit = 'cover',
     style = {},
     alt = '',
-    title,
     onPress,
+    priority: priorityOverride,
+    isAboveFold = false,
+    skipOptimization = false,
   }: ResponsiveImageProps) => {
     const theme = useTheme();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-    const [isUnblurred, setIsUnblurred] = useState(false);
-    const [isNsfw, setIsNsfw] = useState(false);
-    const { isNsfwFilterEnabled } = useNsfwFilter();
-    const isNsfwFilterEnabledRef = React.useRef(isNsfwFilterEnabled);
-    const prevIsNsfwFilterEnabledRef = React.useRef(isNsfwFilterEnabled);
-
-    // Keep ref in sync with current value
-    React.useEffect(() => {
-      isNsfwFilterEnabledRef.current = isNsfwFilterEnabled;
-    }, [isNsfwFilterEnabled]);
-
-    // Reset unblurred state when filter is toggled (only when value actually changes)
-    React.useEffect(() => {
-      if (prevIsNsfwFilterEnabledRef.current !== isNsfwFilterEnabled) {
-        prevIsNsfwFilterEnabledRef.current = isNsfwFilterEnabled;
-        setIsUnblurred(false);
-      }
-    }, [isNsfwFilterEnabled]);
+    const [hasTriedFallback, setHasTriedFallback] = useState(false);
 
     // Extract alt text from URL if not provided
     const finalAlt = useMemo(() => {
@@ -69,83 +55,6 @@ const ResponsiveImage = React.memo(
     const sourceUrl = source?.source;
     const sourceWidth = source?.width;
     const sourceHeight = source?.height;
-
-    useEffect(() => {
-      if (sourceUrl && typeof sourceUrl === 'string' && sourceWidth && sourceHeight) {
-        setDimensions((prev) => {
-          // Only update if dimensions actually changed
-          if (prev.width === sourceWidth && prev.height === sourceHeight) {
-            return prev;
-          }
-          return { width: sourceWidth, height: sourceHeight };
-        });
-      }
-    }, [sourceUrl, sourceWidth, sourceHeight]);
-
-    useEffect(() => {
-      if (!isNsfwFilterEnabledRef.current) {
-        return;
-      }
-
-      let cancelled = false;
-
-      const checkNsfw = async () => {
-        if (!sourceUrl) {
-          setIsNsfw((prev) => (prev === false ? prev : false));
-          return;
-        }
-
-        try {
-          const nsfw = await isNsfwImage(sourceUrl);
-          if (!cancelled) {
-            setIsNsfw((prev) => {
-              if (prev === nsfw) return prev;
-              return nsfw;
-            });
-          }
-        } catch (error) {
-          // Silently handle NSFW check errors
-          if (!cancelled) {
-            setIsNsfw((prev) => (prev === false ? prev : false));
-          }
-        }
-      };
-
-      checkNsfw();
-
-      return () => {
-        cancelled = true;
-      };
-    }, [sourceUrl, title]);
-
-    useEffect(() => {
-      if (prevIsNsfwFilterEnabledRef.current !== isNsfwFilterEnabled && sourceUrl) {
-        let cancelled = false;
-
-        const checkNsfw = async () => {
-          try {
-            const nsfw = await isNsfwImage(sourceUrl);
-            if (!cancelled) {
-              setIsNsfw((prev) => {
-                if (prev === nsfw) return prev;
-                return nsfw;
-              });
-            }
-          } catch (error) {
-            // Silently handle NSFW re-check errors
-          }
-        };
-
-        checkNsfw();
-        prevIsNsfwFilterEnabledRef.current = isNsfwFilterEnabled;
-
-        return () => {
-          cancelled = true;
-        };
-      }
-    }, [isNsfwFilterEnabled, sourceUrl, title]);
-
-    const shouldBlur = isNsfwFilterEnabled && isNsfw && !isUnblurred;
 
     // Check if explicit dimensions are provided in style prop (for cards)
     // Handle both single style object and style array
@@ -171,9 +80,79 @@ const ResponsiveImage = React.memo(
       ? explicitHeight || 600
       : Math.min(600, windowHeight * 0.6); // Max 600px or 60% of screen height
 
+    // Get optimized thumbnail URL for Wikimedia images, or use original
+    // Check cache first to avoid trying URLs we know don't exist
+    const imageUri = useMemo(() => {
+      if (!sourceUrl || typeof sourceUrl !== 'string') return null;
+      
+      // Skip optimization if explicitly requested (e.g., for recommendation cards)
+      if (skipOptimization) {
+        return sourceUrl;
+      }
+      
+      // Only optimize Wikimedia images
+      if (sourceUrl.includes('upload.wikimedia.org') && !hasTriedFallback) {
+        // Use the source width as preferred width, or calculate from window width
+        const preferredWidth = sourceWidth || windowWidth || 800;
+        const optimizedUrl = getOptimizedThumbnailUrl(sourceUrl, preferredWidth);
+        
+        // Check cache first - if we know it doesn't resolve, use original immediately
+        const cachedResult = getCachedUrlResolution(optimizedUrl);
+        if (cachedResult === false) {
+          // Known to not exist, use original URL
+          return sourceUrl;
+        }
+        
+        // If cached as true, or not cached yet, try optimized URL
+        // (will fallback on error if not cached)
+        return optimizedUrl;
+      }
+      
+      // Use original URL (either not Wikimedia, or fallback after failure)
+      return sourceUrl;
+    }, [sourceUrl, sourceWidth, windowWidth, hasTriedFallback, skipOptimization]);
+
+    // Calculate image priority based on size, position, and importance
+    // High priority for: large images, above-fold images, featured content
+    // Low priority for: small thumbnails, below-fold content
+    const imagePriority = useMemo(() => {
+      // Allow explicit override
+      if (priorityOverride) {
+        return priorityOverride;
+      }
+
+      // High priority for:
+      // 1. Large images (main article images, featured content)
+      // 2. Above-fold images (visible without scrolling)
+      if (isAboveFold || (sourceWidth > 400 || sourceHeight > 400)) {
+        return 'high';
+      }
+
+      // Normal priority for:
+      // 1. Medium-sized images
+      // 2. Standard feed images
+      if (sourceWidth > 200 || sourceHeight > 200) {
+        return 'normal';
+      }
+
+      // Low priority for:
+      // 1. Small thumbnails in lists
+      // 2. Below-the-fold content
+      return 'low';
+    }, [priorityOverride, isAboveFold, sourceWidth, sourceHeight]);
+
+    // Reset fallback state when source changes
+    useEffect(() => {
+      setHasTriedFallback(false);
+    }, [sourceUrl]);
+
+    // Use source dimensions directly, fallback to 1:1 aspect ratio if not available
+    const effectiveWidth = sourceWidth || 1;
+    const effectiveHeight = sourceHeight || 1;
+
     // Calculate constrained dimensions while maintaining aspect ratio
     const aspectRatio =
-      dimensions.width > 0 && dimensions.height > 0 ? dimensions.width / dimensions.height : 1;
+      effectiveWidth > 0 && effectiveHeight > 0 ? effectiveWidth / effectiveHeight : 1;
 
     let constrainedWidth =
       useExplicitDimensions && explicitWidth !== undefined ? explicitWidth : maxImageWidth;
@@ -188,25 +167,40 @@ const ResponsiveImage = React.memo(
       constrainedWidth = constrainedHeight * aspectRatio;
     }
 
-    // Validate that sourceUrl is a string before rendering
-    const imageUri = sourceUrl && typeof sourceUrl === 'string' ? sourceUrl : null;
-
     const isValidImage = true;
     // Invalid images are silently skipped (no rendering)
 
     // Memoize image tap handler to prevent recreating on every render
     const handleImageTap = useCallback(() => {
-      if (shouldBlur) {
-        // Unblur the image on first tap
-        setIsUnblurred(true);
-      } else if (onPress && imageUri) {
-        // Call onPress callback if provided and image is not blurred
+      if (onPress && imageUri) {
         onPress({ uri: imageUri, alt: finalAlt });
       }
-    }, [shouldBlur, onPress, imageUri, finalAlt]);
+    }, [onPress, imageUri, finalAlt]);
+
+    // Add headers for Android/iOS to help with Wikimedia image loading
+    // Use the same headers as axiosInstance for consistency (User-Agent, Referer)
+    // Web doesn't need headers, but native platforms may require Referer and User-Agent headers
+    // MUST be called before any early returns to satisfy rules of hooks
+    const imageSource = useMemo(() => {
+      if (!imageUri) return null;
+      
+      if (Platform.OS === 'web') {
+        return { uri: imageUri };
+      }
+      // For native platforms, use the same headers as axiosInstance
+      return {
+        uri: imageUri,
+        headers: {
+          Referer: 'https://en.wikipedia.org',
+          'User-Agent': WIKIPEDIA_API_CONFIG.API_USER_AGENT,
+          'Api-User-Agent': WIKIPEDIA_API_CONFIG.API_USER_AGENT,
+        },
+      };
+    }, [imageUri]);
 
     // Early return only if image is invalid - but all hooks have been called
-    if (!isValidImage || !imageUri || dimensions.width === 0 || dimensions.height === 0) {
+    // On Android, allow rendering even if dimensions aren't available yet (they'll be calculated from aspect ratio)
+    if (!isValidImage || !imageUri) {
       return null;
     }
 
@@ -215,7 +209,7 @@ const ResponsiveImage = React.memo(
         <View style={useExplicitDimensions ? {} : { width: '100%', alignItems: 'center' }}>
           <TouchableRipple
             onPress={handleImageTap}
-            disabled={!shouldBlur && !onPress}
+            disabled={!onPress}
             style={
               useExplicitDimensions
                 ? {
@@ -247,14 +241,44 @@ const ResponsiveImage = React.memo(
                     }
               }
             >
+              {imageSource && (
               <Image
-                source={{ uri: imageUri }}
+                source={imageSource}
                 contentFit={contentFit}
                 alt={finalAlt}
                 accessibilityLabel={finalAlt}
-                placeholder={{ blurhash: 'L5H2EC=PM+yV0gMqNGa#00bH?G-9' }}
+                placeholder={{ blurhash: getRandomBlurhash(imageUri) }}
                 transition={200}
                 cachePolicy="memory-disk"
+                priority={imagePriority}
+                // Add crossOrigin for web to allow CORS requests to Wikipedia images
+                {...(Platform.OS === 'web' && { crossOrigin: 'anonymous' as const })}
+                // Increase timeout for slow connections (default is often too short for large images)
+                {...(Platform.OS !== 'web' && { timeout: 30000 })} // 30 seconds for native platforms
+                onError={(error) => {
+                  // Silently handle image load failures - fallback mechanism will try original URL
+                  // Only log in dev mode for debugging specific issues
+                  if (__DEV__ && !hasTriedFallback) {
+                    // Only log first attempt failures, not fallback attempts
+                    console.warn('ResponsiveImage: Failed to load optimized URL, trying fallback');
+                  }
+                    
+                    // Cache the failure to avoid retrying this URL
+                    if (imageUri && imageUri.includes('upload.wikimedia.org')) {
+                      cacheUrlResolution(imageUri, false);
+                    }
+                    
+                    // If optimized URL failed and we haven't tried fallback yet, use original URL
+                    if (!hasTriedFallback && sourceUrl && sourceUrl.includes('upload.wikimedia.org')) {
+                      setHasTriedFallback(true);
+                    }
+                }}
+                onLoad={() => {
+                  // Cache the success to mark this URL as valid
+                  if (imageUri && imageUri.includes('upload.wikimedia.org')) {
+                    cacheUrlResolution(imageUri, true);
+                  }
+                }}
                 style={[
                   useExplicitDimensions
                     ? {
@@ -269,49 +293,6 @@ const ResponsiveImage = React.memo(
                   style,
                 ]}
               />
-              {shouldBlur && (
-                <BlurView
-                  intensity={100}
-                  tint="dark"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      // Use theme scrim color with appropriate opacity
-                      backgroundColor: theme.colors.scrim + (theme.dark ? 'B3' : '99'), // 70% dark, 60% light
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      opacity: 0.8,
-                    }}
-                  >
-                    <Text variant="labelLarge" style={{ color: theme.colors.surface }}>
-                      Sensitive Content
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      style={{
-                        color: theme.colors.surface,
-                        marginTop: SPACING.xs,
-                        textAlign: 'center',
-                      }}
-                    >
-                      Tap to reveal
-                    </Text>
-                  </View>
-                </BlurView>
               )}
             </View>
           </TouchableRipple>
@@ -326,7 +307,6 @@ const ResponsiveImage = React.memo(
       prevProps.source?.width === nextProps.source?.width &&
       prevProps.source?.height === nextProps.source?.height &&
       prevProps.alt === nextProps.alt &&
-      prevProps.title === nextProps.title &&
       prevProps.onPress === nextProps.onPress &&
       prevProps.contentFit === nextProps.contentFit
     );

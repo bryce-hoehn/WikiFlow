@@ -49,7 +49,7 @@ export default function AppSidebar() {
         onPress={handleRandomArticle}
         loading={loadingRandom}
         disabled={loadingRandom}
-        style={{ borderRadius: theme.roundness * 2 }} // 8dp equivalent (4dp * 2) - MD3 doesn't specify 24dp, using 8dp
+        // M3: Buttons use 20dp corner radius (RNP handles this by default, no need to override)
         contentStyle={{ paddingVertical: SPACING.xs / 2 }}
       >
         Random Article

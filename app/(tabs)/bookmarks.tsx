@@ -1,13 +1,14 @@
 import BookmarkCard from '@/components/bookmarks/BookmarkCard';
-import BookmarkEditModal from '@/components/bookmarks/BookmarkEditModal';
+import BookmarkEditDialog from '@/components/bookmarks/BookmarkEditDialog';
 import BookmarkFilters from '@/components/bookmarks/BookmarkFilters';
 import BookmarkSearchBar from '@/components/bookmarks/BookmarkSearchBar';
 import BookmarkSortMenu, { SortOption } from '@/components/bookmarks/BookmarkSortMenu';
 import BookmarkTagEditor from '@/components/bookmarks/BookmarkTagEditor';
 import BookmarksEmptyState from '@/components/bookmarks/BookmarksEmptyState';
-import ProgressModal from '@/components/common/ProgressModal';
+import ProgressDialog from '@/components/common/ProgressDialog';
 import { LAYOUT } from '@/constants/layout';
 import { SPACING } from '@/constants/spacing';
+import { TYPOGRAPHY } from '@/constants/typography';
 import { useScrollToTop } from '@/context/ScrollToTopContext';
 import { useBookmarks, useReadingProgress } from '@/hooks';
 import { Bookmark } from '@/types/bookmarks';
@@ -17,6 +18,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, RefreshControl, View, useWindowDimensions } from 'react-native';
 import { Appbar, Button, Chip, Menu, Modal, Portal, Text, useTheme } from 'react-native-paper';
 import { useSnackbar } from '../../context/SnackbarContext';
+import { useImagePrefetching } from '../../hooks';
 
 export default function BookmarksScreen() {
   const theme = useTheme();
@@ -168,6 +170,18 @@ export default function BookmarksScreen() {
 
     return filtered;
   }, [bookmarks, searchQuery, selectedTag, sortOption, getProgress, fuseModule]);
+
+  // Image prefetching: Prefetch images for items about to become visible
+  const { onViewableItemsChanged } = useImagePrefetching({
+    data: filteredAndSortedBookmarks,
+    getImageUrl: (item: Bookmark) => item?.thumbnail?.source,
+    preferredWidth: 400, // Standard width for bookmark card images
+  });
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50, // Item is considered visible when 50% is shown
+    minimumViewTime: 100, // Minimum time item must be visible (ms)
+  }).current;
 
   const handleRemoveBookmark = useCallback(
     async (title: string) => {
@@ -517,7 +531,12 @@ export default function BookmarksScreen() {
             />
             <Appbar.Content
               title={`${selectedTitles.size} selected`}
-              titleStyle={{ fontWeight: '700', fontSize: 20 }}
+              titleStyle={{
+                // MD3: Center-aligned app bars use 22sp title
+                // Reference: https://m3.material.io/components/app-bars/overview
+                fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+                fontSize: TYPOGRAPHY.appBarTitle,
+              }}
             />
             <Appbar.Action
               icon="tag"
@@ -548,8 +567,10 @@ export default function BookmarksScreen() {
             <Appbar.Content
               title={`Bookmarks (${filteredAndSortedBookmarks.length}${filteredAndSortedBookmarks.length !== bookmarks.length ? ` of ${bookmarks.length}` : ''})`}
               titleStyle={{
-                fontWeight: '700',
-                fontSize: 20,
+                // MD3: Center-aligned app bars use 22sp title
+                // Reference: https://m3.material.io/components/app-bars/overview
+                fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+                fontSize: 22, // 22sp per MD3 specification
                 color: theme.colors.onSurface,
                 textAlign: 'center',
               }}
@@ -623,8 +644,8 @@ export default function BookmarksScreen() {
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 8,
+            paddingHorizontal: SPACING.base,
+            paddingVertical: SPACING.sm,
             backgroundColor: theme.colors.surfaceVariant,
           }}
         >
@@ -652,7 +673,7 @@ export default function BookmarksScreen() {
         {...({ estimatedItemSize: 220 } as any)}
         style={{ backgroundColor: theme.colors.background }}
         contentContainerStyle={{
-          paddingVertical: 16,
+          paddingVertical: SPACING.base,
           flexGrow: 1,
           paddingHorizontal: horizontalPadding,
           ...(filteredAndSortedBookmarks.length === 0 && {
@@ -661,6 +682,8 @@ export default function BookmarksScreen() {
         }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={renderEmptyState}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -672,7 +695,7 @@ export default function BookmarksScreen() {
       />
 
       <Portal>
-        <ProgressModal
+        <ProgressDialog
           visible={isDownloadingAll}
           progress={downloadProgress}
           message={
@@ -690,7 +713,7 @@ export default function BookmarksScreen() {
           cancelLabel="Cancel"
         />
 
-        <BookmarkEditModal
+        <BookmarkEditDialog
           visible={editModalVisible}
           bookmark={editingBookmark}
           allBookmarks={bookmarks}

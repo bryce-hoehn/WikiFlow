@@ -10,10 +10,11 @@ import {
 import { Card, Chip, IconButton, ProgressBar, Text, useTheme } from 'react-native-paper';
 import { getHoverStyles } from '../../constants/motion';
 import { SPACING } from '../../constants/spacing';
+import { TYPOGRAPHY } from '../../constants/typography';
 import ResponsiveImage from '../common/ResponsiveImage';
 
-// Lazy load ArticleImageModal - only needed when user opens an image
-const ArticleImageModal = React.lazy(() => import('../article/ArticleImageModal'));
+// Lazy load ImageDialog - only needed when user opens an image
+const ImageDialog = React.lazy(() => import('../article/ImageDialog'));
 
 import { LAYOUT } from '../../constants/layout';
 import { useSnackbar } from '../../context/SnackbarContext';
@@ -163,12 +164,12 @@ const BookmarkCard = React.memo(function BookmarkCard({
       accessibilityHint={`Opens the ${item.title} article. Long press to select.`}
     >
       <Card
-        elevation={isHovered && Platform.OS === 'web' ? 4 : 2} // Use Card's elevation prop instead of custom shadows
+        elevation={isHovered && Platform.OS === 'web' ? 4 : 1} // M3: Default elevation 1dp, increases to 4dp on hover
         style={{
           width: '100%',
           maxWidth: '100%',
           minHeight: cardHeight,
-          borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+          borderRadius: theme.roundness * 3, // M3: 12dp corner radius (4dp * 3)
           // Only show border when selected in selection mode (for visual feedback)
           // Otherwise rely on elevation for depth (MD3 best practice)
           borderWidth: selectionMode && isSelected ? 2 : 0,
@@ -230,7 +231,6 @@ const BookmarkCard = React.memo(function BookmarkCard({
                   height: cardHeight,
                 }}
                 alt={`Thumbnail for ${item.title}`}
-                title={item.title}
                 onPress={handleImagePress}
               />
             ) : (
@@ -265,20 +265,16 @@ const BookmarkCard = React.memo(function BookmarkCard({
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'flex-start',
-                  marginBottom: isSmallScreen ? 6 : 8,
-                  width: '100%',
+                  marginBottom: isSmallScreen ? SPACING.xs + 2 : SPACING.sm,
                 }}
               >
                 <Text
                   variant={isSmallScreen ? 'titleSmall' : 'titleMedium'}
                   style={{
-                    // fontWeight and fontSize removed - using variant defaults
-                    lineHeight: isSmallScreen ? 21 : 26,
+                    lineHeight: (isSmallScreen ? TYPOGRAPHY.titleSmall : TYPOGRAPHY.titleMedium) * TYPOGRAPHY.lineHeightNormal,
                     color: theme.colors.onSurface,
                     flex: 1,
-                    marginRight: 8,
-                    flexShrink: 1,
-                    minWidth: 0, // Allow text to shrink
+                    marginRight: SPACING.sm,
                   }}
                   numberOfLines={2}
                 >
@@ -290,8 +286,8 @@ const BookmarkCard = React.memo(function BookmarkCard({
                       flexDirection: 'row',
                       alignItems: 'flex-start',
                       flexShrink: 0,
-                      marginLeft: 4,
-                      paddingTop: 2, // Align with text baseline
+                      marginLeft: SPACING.xs,
+                      paddingTop: SPACING.xs / 2,
                     }}
                   >
                     {onEdit && (
@@ -302,8 +298,8 @@ const BookmarkCard = React.memo(function BookmarkCard({
                           e.stopPropagation();
                           onEdit();
                         }}
-                        style={{ margin: 0, backgroundColor: 'transparent' }}
-                        size={isSmallScreen ? 18 : 20}
+                        style={{ margin: 0 }}
+                        size={isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge}
                         accessibilityLabel={`Edit tags for ${item.title}`}
                         accessibilityHint="Edit bookmark tags"
                       />
@@ -316,8 +312,8 @@ const BookmarkCard = React.memo(function BookmarkCard({
                       onPress={handleDownload}
                       disabled={isDownloading || isDownloaded}
                       loading={isDownloading}
-                      style={{ margin: 0, backgroundColor: 'transparent' }}
-                      size={isSmallScreen ? 18 : 20}
+                      style={{ margin: 0 }}
+                      size={isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge}
                       accessibilityLabel={
                         isDownloaded
                           ? `${item.title} is downloaded`
@@ -336,8 +332,8 @@ const BookmarkCard = React.memo(function BookmarkCard({
                         e.stopPropagation();
                         onRemoveBookmark(item.title);
                       }}
-                      style={{ margin: 0, backgroundColor: 'transparent' }}
-                      size={isSmallScreen ? 18 : 20}
+                      style={{ margin: 0 }}
+                      size={isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge}
                       accessibilityLabel={`Remove ${item.title} from bookmarks`}
                       accessibilityHint={`Removes this article from your bookmarks`}
                     />
@@ -351,9 +347,9 @@ const BookmarkCard = React.memo(function BookmarkCard({
                   style={{
                     flexDirection: 'row',
                     flexWrap: 'wrap',
-                    gap: 4,
-                    marginBottom: 6,
-                    marginTop: 2,
+                    gap: SPACING.xs,
+                    marginBottom: SPACING.xs + 2,
+                    marginTop: SPACING.xs / 2,
                   }}
                 >
                   {item.tags.slice(0, 2).map((tag) => (
@@ -361,13 +357,12 @@ const BookmarkCard = React.memo(function BookmarkCard({
                       key={tag}
                       style={{
                         height: 28,
-                        paddingHorizontal: 6,
-                        paddingVertical: 0, // Let height control vertical spacing
-                        justifyContent: 'center', // Center content vertically
+                        paddingHorizontal: SPACING.xs + 2,
+                        paddingVertical: 0,
+                        justifyContent: 'center',
                       }}
                       textStyle={{
-                        // fontSize removed - using variant default
-                        lineHeight: 11, // Match font size for equal padding
+                        lineHeight: TYPOGRAPHY.bodySmall,
                       }}
                       mode="flat"
                       compact
@@ -386,13 +381,12 @@ const BookmarkCard = React.memo(function BookmarkCard({
                     <Chip
                       style={{
                         height: 28,
-                        paddingHorizontal: 6,
-                        paddingVertical: 0, // Let height control vertical spacing
-                        justifyContent: 'center', // Center content vertically
+                        paddingHorizontal: SPACING.xs + 2,
+                        paddingVertical: 0,
+                        justifyContent: 'center',
                       }}
                       textStyle={{
-                        // fontSize removed - using variant default
-                        lineHeight: 11, // Match font size for equal padding
+                        lineHeight: TYPOGRAPHY.bodySmall,
                       }}
                       mode="flat"
                       compact
@@ -479,7 +473,7 @@ const BookmarkCard = React.memo(function BookmarkCard({
 
       {imageModalVisible && (
         <Suspense fallback={null}>
-          <ArticleImageModal
+          <ImageDialog
             visible={imageModalVisible}
             selectedImage={selectedImage}
             onClose={() => {

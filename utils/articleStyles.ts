@@ -111,7 +111,7 @@ export function getArticleTagStyles(
       fontFamily: fontFamilyValue,
     },
     table: {
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.surface, // MD3: Surface color for table container
       marginVertical: 12, // MD3: 12dp vertical spacing
       width: '100%',
       maxWidth: '100%',
@@ -126,7 +126,12 @@ export function getArticleTagStyles(
       backgroundColor: 'transparent',
     },
     th: {
-      backgroundColor: (theme.colors as any).surfaceContainerHighest || theme.colors.surfaceVariant, // MD3: Subtle elevation for headers
+      // MD3: Use elevation level 5 (surfaceContainerHighest) for table headers, fallback to surfaceContainer or surfaceVariant
+      backgroundColor:
+        (theme.colors as any).elevation?.level5 ||
+        (theme.colors as any).surfaceContainerHighest ||
+        (theme.colors as any).surfaceContainer ||
+        theme.colors.surfaceVariant,
       color: theme.colors.onSurface, // MD3: On-surface for text
       fontWeight: '600' as TextStyle['fontWeight'], // MD3: Use 600 for medium emphasis
       paddingVertical: 8, // MD3: 8dp vertical padding (1x base unit)
@@ -141,6 +146,8 @@ export function getArticleTagStyles(
       borderStyle: 'solid' as any,
     },
     td: {
+      // MD3: Table cells are transparent, inheriting the table's surface background
+      backgroundColor: 'transparent',
       paddingVertical: 8, // MD3: 8dp vertical padding (1x base unit)
       paddingHorizontal: 12, // MD3: 12dp horizontal padding (1.5x base unit)
       color: theme.colors.onSurface, // MD3: On-surface for text

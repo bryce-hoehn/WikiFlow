@@ -8,12 +8,13 @@ import { Card, Icon, IconButton, Menu, ProgressBar, Text, TouchableRipple, useTh
 import { LAYOUT } from '../../constants/layout';
 import { getHoverStyles, MOTION } from '../../constants/motion';
 import { SPACING } from '../../constants/spacing';
+import { TYPOGRAPHY } from '../../constants/typography';
 import { useReadingProgress, useReducedMotion, useVisitedArticles } from '../../hooks';
 import { RecommendationCardProps } from '../../types/components';
 import { hapticLight, hapticMedium } from '../../utils/haptics';
 import { copyArticleUrl, shareArticle } from '../../utils/shareUtils';
 import ResponsiveImage from '../common/ResponsiveImage';
-import ArticleImageModal from './ArticleImageModal';
+import ImageDialog from './ImageDialog';
 
 const RecommendationCard = React.memo(function RecommendationCard({
   item,
@@ -233,19 +234,16 @@ const RecommendationCard = React.memo(function RecommendationCard({
         accessibilityHint={`Opens the recommended article: ${item.title}. Long press for more options.`}
       >
         <Card
-          elevation={2}
+          elevation={isHovered && Platform.OS === 'web' ? 4 : 1}
           style={{
             width: '100%',
             maxWidth: '100%',
             borderRadius: theme.roundness * 3,
-            backgroundColor: isPressed
+            backgroundColor: (isPressed || (isHovered && Platform.OS === 'web'))
               ? theme.colors.surface
-              : isHovered && Platform.OS === 'web'
-                ? theme.colors.surface
-                : theme.colors.elevation.level2,
+              : theme.colors.elevation.level2,
             overflow: 'hidden',
-            ...(Platform.OS === 'web' &&
-              getHoverStyles(isHovered, reducedMotion, { scale: 1.01 })),
+            ...(Platform.OS === 'web' && getHoverStyles(isHovered, reducedMotion, { scale: 1.01 })),
           }}
         >
           <View style={{ flexDirection: 'row', height: cardHeight }}>
@@ -270,7 +268,7 @@ const RecommendationCard = React.memo(function RecommendationCard({
                     height: cardHeight,
                   }}
                   alt={`Thumbnail for ${item.title}`}
-                  title={item.title}
+                  skipOptimization={true} // Use default thumbnail without optimization
                   onPress={() => {
                     setImageModalVisible(true);
                   }}
@@ -288,35 +286,28 @@ const RecommendationCard = React.memo(function RecommendationCard({
                   </Text>
                 </View>
               )}
-              {/* Visited Badge */}
               {isVisited && (
                 <View
                   style={{
                     position: 'absolute',
-                    top: 6,
-                    right: 6,
+                    top: SPACING.xs + 2,
+                    right: SPACING.xs + 2,
                     backgroundColor: theme.colors.primaryContainer,
                     borderRadius: theme.roundness * 2,
                     paddingHorizontal: SPACING.xs + 2,
                     paddingVertical: SPACING.xs / 2,
                     flexDirection: 'row',
                     alignItems: 'center',
-                    gap: 3,
+                    gap: SPACING.xs - 1,
                   }}
                 >
                   <IconButton
                     icon="check-circle"
                     iconColor={theme.colors.onPrimaryContainer}
-                    size={12}
+                    size={TYPOGRAPHY.bodySmall}
                     style={{ margin: 0 }}
                   />
-                  <Text
-                    variant="labelSmall"
-                    style={{
-                      color: theme.colors.onPrimaryContainer,
-                      // fontWeight and fontSize removed - using variant defaults
-                    }}
-                  >
+                  <Text variant="labelSmall" style={{ color: theme.colors.onPrimaryContainer }}>
                     Visited
                   </Text>
                 </View>
@@ -327,8 +318,8 @@ const RecommendationCard = React.memo(function RecommendationCard({
             <Card.Content
               style={{
                 flex: 1,
-                padding: isSmallScreen ? SPACING.md : SPACING.lg,
-                paddingBottom: isSmallScreen ? SPACING.md + 4 : SPACING.lg + 4,
+                padding: SPACING.base,
+                paddingBottom: SPACING.base + SPACING.xs,
                 justifyContent: 'space-between',
                 height: cardHeight,
               }}
@@ -339,19 +330,18 @@ const RecommendationCard = React.memo(function RecommendationCard({
                     flexDirection: 'row',
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
-                    marginBottom: isSmallScreen ? 6 : 8,
+                    marginBottom: isSmallScreen ? SPACING.xs + 2 : SPACING.sm,
                   }}
                 >
                   <Text
                     variant={isSmallScreen ? 'titleSmall' : 'titleMedium'}
                     style={{
-                      // fontWeight and fontSize removed - using variant defaults
-                      lineHeight: isSmallScreen ? 22 : 28,
+                      lineHeight: (isSmallScreen ? TYPOGRAPHY.titleSmall : TYPOGRAPHY.titleMedium) * TYPOGRAPHY.lineHeightNormal,
                       color: theme.colors.onSurface,
                       flex: 1,
-                      marginRight: 8,
+                      marginRight: SPACING.sm,
                     }}
-                    numberOfLines={isSmallScreen ? 2 : 2}
+                    numberOfLines={2}
                   >
                     {item.title}
                   </Text>
@@ -360,32 +350,22 @@ const RecommendationCard = React.memo(function RecommendationCard({
                       icon="share-variant"
                       iconColor={theme.colors.onSurfaceVariant}
                       onPress={handleShare}
-                      style={{
-                        margin: 0,
-                        backgroundColor: 'transparent',
-                      }}
-                      size={isSmallScreen ? 18 : 20}
+                      style={{ margin: 0 }}
+                      size={isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge}
                       accessibilityLabel={`Share ${item.title}`}
                       accessibilityHint="Shares this article with others"
                     />
                     <IconButton
                       icon={isBookmarked(item.title) ? 'bookmark' : 'bookmark-outline'}
-                      iconColor={
-                        isBookmarked(item.title)
-                          ? theme.colors.primary
-                          : theme.colors.onSurfaceVariant
-                      }
+                      iconColor={isBookmarked(item.title) ? theme.colors.primary : theme.colors.onSurfaceVariant}
                       onPress={(e) => {
                         if (e && typeof e.stopPropagation === 'function') {
                           e.stopPropagation();
                         }
                         onBookmarkToggle(item);
                       }}
-                      style={{
-                        margin: 0,
-                        backgroundColor: 'transparent',
-                      }}
-                      size={isSmallScreen ? 18 : 20}
+                      style={{ margin: 0 }}
+                      size={isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge}
                       accessibilityLabel={
                         isBookmarked(item.title)
                           ? `Remove ${item.title} from bookmarks`
@@ -405,55 +385,31 @@ const RecommendationCard = React.memo(function RecommendationCard({
                           }
                           onRemove(item.title);
                         }}
-                        style={{
-                          margin: 0,
-                          padding: 8,
-                          borderRadius: theme.roundness * 2,
-                        }}
+                        style={{ margin: 0, padding: SPACING.sm, borderRadius: theme.roundness * 2 }}
                         accessibilityLabel={`Remove ${item.title} from history`}
                         accessibilityHint="Removes this article from your reading history"
                         accessibilityRole="button"
                       >
-                        <Icon source="delete-outline" size={isSmallScreen ? 18 : 20} color={theme.colors.error} />
+                        <Icon source="delete-outline" size={isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge} color={theme.colors.error} />
                       </TouchableRipple>
                     )}
                   </View>
                 </View>
 
-                {/* Reading Progress Indicator for Bookmarked Articles */}
                 {isBookmarkedArticle && readingProgress > 0 && (
-                  <View style={{ marginBottom: 8 }}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 3,
-                      }}
-                    >
-                      <Text
-                        variant="labelSmall"
-                        style={{
-                          color: theme.colors.onSurfaceVariant,
-                          // fontSize removed - using variant default
-                        }}
-                      >
+                  <View style={{ marginBottom: SPACING.sm }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xs - 1 }}>
+                      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                         Reading progress
                       </Text>
-                      <Text
-                        variant="labelSmall"
-                        style={{
-                          color: theme.colors.primary,
-                          // fontWeight and fontSize removed - using variant defaults
-                        }}
-                      >
+                      <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
                         {readingProgress}%
                       </Text>
                     </View>
                     <ProgressBar
                       progress={readingProgress / 100}
                       color={theme.colors.primary}
-                      style={{ height: 3, borderRadius: theme.roundness * 0.5 }}
+                      style={{ height: SPACING.xs - 1, borderRadius: theme.roundness * 0.5 }}
                     />
                   </View>
                 )}
@@ -462,10 +418,9 @@ const RecommendationCard = React.memo(function RecommendationCard({
                   variant="bodySmall"
                   style={{
                     color: theme.colors.onSurfaceVariant,
-                    lineHeight: isSmallScreen ? 21 : 26,
-                    fontSize: isSmallScreen ? 14 : 17,
-                    fontWeight: '400',
-                    marginBottom: 4,
+                    lineHeight: (isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge) * TYPOGRAPHY.lineHeightNormal,
+                    fontSize: isSmallScreen ? TYPOGRAPHY.bodyMedium : TYPOGRAPHY.bodyLarge,
+                    marginBottom: SPACING.xs,
                   }}
                   numberOfLines={2}
                 >
@@ -480,7 +435,7 @@ const RecommendationCard = React.memo(function RecommendationCard({
       </Pressable>
 
       {item.thumbnail && (
-        <ArticleImageModal
+        <ImageDialog
           visible={imageModalVisible}
           selectedImage={{
             uri: item.thumbnail.source,

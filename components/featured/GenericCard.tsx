@@ -1,4 +1,5 @@
 import HtmlRenderer from '@/components/common/HtmlRenderer';
+import { TYPOGRAPHY } from '@/constants/typography';
 import React, { memo } from 'react';
 import { Text, useTheme, type MD3Theme } from 'react-native-paper';
 import { RecommendationItem } from '../../types/components';
@@ -42,7 +43,14 @@ function GenericCard({ item, itemWidth, theme }: GenericCardProps) {
 
     if (description === 'No content available') {
       return (
-        <Text variant="bodyMedium" style={{ fontSize: 14, lineHeight: 18, textAlign: 'center' }}>
+        <Text 
+          variant="bodyMedium" 
+          style={{ 
+            // Using variant for fontSize, but need custom lineHeight calculation
+            lineHeight: TYPOGRAPHY.bodyMedium * TYPOGRAPHY.lineHeightNormal, 
+            textAlign: 'center' 
+          }}
+        >
           {description}
         </Text>
       );
@@ -50,12 +58,19 @@ function GenericCard({ item, itemWidth, theme }: GenericCardProps) {
 
     if (hasHtmlContent) {
       return (
-        <HtmlRenderer html={description} maxLines={4} style={{ fontSize: 14, lineHeight: 18, flexShrink: 1 }} />
+        <HtmlRenderer html={description} maxLines={4} style={{ fontSize: TYPOGRAPHY.bodyMedium, lineHeight: TYPOGRAPHY.bodyMedium * TYPOGRAPHY.lineHeightNormal, flexShrink: 1 }} />
       );
     }
 
     return (
-      <Text variant="bodyMedium" style={{ fontSize: 14, lineHeight: 18 }} numberOfLines={4}>
+      <Text 
+        variant="bodyMedium" 
+        style={{ 
+          // Using variant for fontSize, but need custom lineHeight calculation
+          lineHeight: TYPOGRAPHY.bodyMedium * TYPOGRAPHY.lineHeightNormal 
+        }} 
+        numberOfLines={4}
+      >
         {description}
       </Text>
     );

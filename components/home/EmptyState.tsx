@@ -59,7 +59,7 @@ export default function EmptyState({
       ? [
           {
             label: 'Browse Popular Articles',
-            action: () => router.push('/(tabs)'),
+            action: () => router.push('/(tabs)?tab=hot'),
             icon: 'trending-up',
           },
           {
@@ -69,7 +69,7 @@ export default function EmptyState({
           },
           {
             label: 'Try Random Article',
-            action: () => router.push('/(tabs)'),
+            action: () => router.push('/(tabs)?tab=random'),
             icon: 'shuffle',
           },
         ]
@@ -135,9 +135,7 @@ export default function EmptyState({
               mode="outlined"
               onPress={suggestion.action}
               icon={suggestion.icon}
-              style={{
-                borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
-              }}
+              // M3: Buttons use 20dp corner radius (RNP handles this by default)
               contentStyle={{ paddingVertical: SPACING.sm }}
             >
               {suggestion.label}

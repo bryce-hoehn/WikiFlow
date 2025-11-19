@@ -45,7 +45,7 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState(initialQuery);
   const { visitedArticles } = useVisitedArticles();
-  const searchInputRef = React.useRef<TextInput>(null);
+  const searchInputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
   const slideAnim = useRef(new Animated.Value(reducedMotion ? 0 : -20)).current;
   const isNavigatingRef = useRef(false);
@@ -116,6 +116,29 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
     }
   }, [visible]);
 
+  // MD3 Accessibility: Focus management - ensure search input receives focus when overlay opens
+  // per https://m3.material.io/components/search/accessibility
+  useEffect(() => {
+    if (visible && searchInputRef.current) {
+      // Small delay to ensure the overlay is fully rendered
+      const timeoutId = setTimeout(() => {
+        if (Platform.OS === 'web') {
+          // Web: Use focus() method
+          const input = searchInputRef.current as any;
+          if (input?.focus) {
+            input.focus();
+          }
+        } else {
+          // Native: Searchbar handles autoFocus, but ensure it's focused
+          if (searchInputRef.current) {
+            (searchInputRef.current as any)?.focus?.();
+          }
+        }
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [visible]);
+
   const handleSearchSubmit = useCallback(() => {
     if (query.trim()) {
       router.push(`/article/${encodeURIComponent(query)}`);
@@ -129,10 +152,15 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
       isNavigatingRef.current = true;
       // Dismiss keyboard first
       Keyboard.dismiss();
-      // Close overlay immediately before navigation to prevent reload issue
-      onClose();
-      // Navigate immediately - don't wait for interactions
+      
+      // Navigate first to ensure navigation starts before overlay closes
       router.push(`/article/${encodeURIComponent(title)}`);
+      
+      // Close overlay after a minimal delay to ensure navigation is queued
+      // Use requestAnimationFrame to ensure navigation starts before close
+      requestAnimationFrame(() => {
+        onClose();
+      });
     },
     [onClose]
   );
@@ -208,20 +236,28 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
           collapsable={false}
         >
           {/* Full-width search bar directly under status bar */}
+          {/* MD3 Search View: Search bar container with proper elevation - per https://m3.material.io/components/search/guidelines */}
           <View
             style={[
               styles.searchBarContainer,
               {
                 paddingTop: insets.top,
                 backgroundColor: theme.colors.surface,
-                height: 60 + insets.top, // Match totalHeaderHeight from Discover page (HEADER_HEIGHT + insets.top)
+                // MD3: 56dp search bar height + safe area top
+                height: 56 + insets.top,
               },
             ]}
           >
             <View
               style={[
                 styles.searchBarWrapper,
-                { justifyContent: 'center', flex: 1, minHeight: 60 },
+                { 
+                  justifyContent: 'center', 
+                  flex: 1, 
+                  // MD3: 56dp minimum height for search bar
+                  minHeight: 56,
+                  height: 56,
+                },
               ]}
             >
               <Searchbar
@@ -248,6 +284,9 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
                     elevation: 0,
                     backgroundColor: 'transparent',
                     borderRadius: 0,
+                    // MD3: Ensure 56dp height for search bars - per https://m3.material.io/components/search/specs
+                    minHeight: 56,
+                    height: 56,
                   },
                 ]}
                 inputStyle={{
@@ -258,8 +297,14 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
                   includeFontPadding: false,
                 }}
                 iconColor={theme.colors.onSurfaceVariant}
+                // MD3 Accessibility: Proper labels and hints - per https://m3.material.io/components/search/accessibility
                 accessibilityLabel="Search Wikipedia"
                 accessibilityRole="search"
+                accessibilityHint={
+                  query && query.length > 0
+                    ? `Searching for "${query}". Press enter to view results.`
+                    : 'Enter search terms to find Wikipedia articles'
+                }
                 autoFocus
                 returnKeyType="search"
                 {...(Platform.OS === 'android' && {
@@ -275,8 +320,10 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
                 onPress={handleClose}
                 style={styles.closeButton}
                 iconColor={theme.colors.onSurface}
+                // MD3 Accessibility: Clear button label and hint - per https://m3.material.io/components/search/accessibility
                 accessibilityLabel="Close search"
-                accessibilityHint="Closes the search overlay and returns to previous screen"
+                accessibilityRole="button"
+                accessibilityHint="Closes the search overlay and returns to the previous screen"
               />
             </View>
           </View>
@@ -285,17 +332,35 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
             style={[
               styles.scrollView,
               Platform.OS !== 'web' && {
-                maxHeight: SCREEN_HEIGHT - (60 + insets.top),
+                // MD3: Account for 56dp search bar + safe area
+                maxHeight: SCREEN_HEIGHT - (56 + insets.top),
               },
             ]}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={true}
+            // MD3 Accessibility: Proper role for search results area - per https://m3.material.io/components/search/accessibility
+            accessibilityRole="list"
+            accessibilityLabel={
+              showSearchResults
+                ? `${safeSuggestions.length} search results found`
+                : showNoResults
+                  ? 'No search results found'
+                  : showRecentlyViewed
+                    ? `${recentVisitedArticles.length} recently viewed articles`
+                    : 'Search results'
+            }
           >
             {/* Loading State */}
             {isLoadingSuggestions && debouncedQuery.length > 2 && (
-              <View style={styles.skeletonContainer}>
+              <View
+                style={styles.skeletonContainer}
+                // MD3 Accessibility: Loading state announcement - per https://m3.material.io/components/search/accessibility
+                accessibilityRole="progressbar"
+                accessibilityLabel="Loading search results"
+                accessibilityLiveRegion="polite"
+              >
                 {Array.from({ length: 5 }).map((_, index) => (
                   <SearchResultSkeleton key={`skeleton-${index}`} index={index} />
                 ))}
@@ -311,7 +376,15 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
             )}
 
             {/* No Results */}
-            {showNoResults && <NoResultsState query={query} onClearSearch={handleClose} />}
+            {showNoResults && (
+              <View
+                // MD3 Accessibility: Proper role for no results state - per https://m3.material.io/components/search/accessibility
+                accessibilityRole="alert"
+                accessibilityLabel={`No results found for "${query}"`}
+              >
+                <NoResultsState query={query} onClearSearch={handleClose} />
+              </View>
+            )}
 
             {/* Recently Viewed */}
             {showRecentlyViewed && (
@@ -444,13 +517,16 @@ const styles = StyleSheet.create({
   },
   searchBarContainer: {
     width: '100%',
+    // MD3 Search View: Proper elevation for search bar container - per https://m3.material.io/components/search/guidelines
     ...Platform.select({
       web: {
         paddingBottom: SPACING.sm,
+        // Web uses box-shadow instead of elevation
       },
       default: {
         paddingBottom: SPACING.xs,
-        elevation: 2,
+        // MD3: elevation.level1 for search view header
+        elevation: 1,
       },
     }),
   },
@@ -471,10 +547,15 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    // MD3 Search View: Proper content padding - per https://m3.material.io/components/search/guidelines
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.base,
+    paddingHorizontal: SPACING.base,
   },
   skeletonContainer: {
+    // Match BaseListWithHeader contentContainerStyle padding
     paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingTop: SPACING.sm, // M3: 8dp top padding for lists
+    paddingBottom: SPACING.sm, // M3: 8dp bottom padding for lists
   },
 });

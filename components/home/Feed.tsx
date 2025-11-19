@@ -7,7 +7,7 @@ import { LAYOUT } from '../../constants/layout';
 import { SPACING } from '../../constants/spacing';
 import { useFeedScroll } from '../../context/FeedScrollContext';
 import { useScrollToTop } from '../../context/ScrollToTopContext';
-import { useBookmarkToggle } from '../../hooks';
+import { useBookmarkToggle, useImagePrefetching } from '../../hooks';
 import { FeedProps, RecommendationItem } from '../../types/components';
 import RecommendationCard from '../article/RecommendationCard';
 import CardSkeleton from '../common/CardSkeleton';
@@ -34,6 +34,18 @@ export default function Feed({
   const { registerScrollRef, shouldScrollOnFocus, markFocused } = useScrollToTop();
   const [fabVisible, setFabVisible] = useState(false);
   const hasRestoredScrollRef = useRef(false);
+  
+  // Image prefetching: Prefetch images for items about to become visible
+  const { onViewableItemsChanged } = useImagePrefetching({
+    data,
+    getImageUrl: (item: RecommendationItem) => item?.thumbnail?.source,
+    preferredWidth: 800, // Standard width for feed images
+  });
+
+  const viewabilityConfig = React.useRef({
+    itemVisiblePercentThreshold: 50, // Item is considered visible when 50% is shown
+    minimumViewTime: 100, // Minimum time item must be visible (ms)
+  }).current;
   
   // Use refs to prevent infinite loops from context function changes
   const saveScrollPositionRef = React.useRef(saveScrollPosition);
@@ -273,6 +285,8 @@ export default function Feed({
         onEndReachedThreshold={0.3}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmptyState}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         onScroll={Platform.OS === 'web' ? handleScroll : Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollYValue } } }],
           {

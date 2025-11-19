@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { Card, IconButton, Text, useTheme } from 'react-native-paper';
-import ArticleImageModal from '../article/ArticleImageModal';
+import ImageDialog from '../article/ImageDialog';
 import HtmlRenderer from '../common/HtmlRenderer';
 import ResponsiveImage from '../common/ResponsiveImage';
 
@@ -66,7 +66,7 @@ export default function FeaturedArticleCard({ variant = 'default' }: FeaturedArt
 
   return (
     <Card
-      elevation={isHovered && Platform.OS === 'web' ? 4 : 2}
+      elevation={isHovered && Platform.OS === 'web' ? 4 : 1} // M3: Default elevation 1dp, increases to 4dp on hover
       style={{
         width: '100%',
         height: cardHeight,
@@ -74,10 +74,8 @@ export default function FeaturedArticleCard({ variant = 'default' }: FeaturedArt
           isHovered && Platform.OS === 'web'
             ? theme.colors.surface
             : theme.colors.elevation.level2,
-        borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+        borderRadius: theme.roundness * 3, // M3: 12dp corner radius (4dp * 3)
         overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
         ...(Platform.OS === 'web' &&
           getHoverStyles(isHovered, reducedMotion, { scale: 1.01 })),
       }}
@@ -137,7 +135,13 @@ export default function FeaturedArticleCard({ variant = 'default' }: FeaturedArt
           </View>
         )}
       </View>
-      <Card.Content style={{ flex: 1, height: contentHeight }}>
+      <Card.Content 
+        style={{ 
+          padding: SPACING.md,
+          minHeight: contentHeight,
+          justifyContent: 'flex-start',
+        }}
+      >
         {/* Display title - render as HTML if it contains HTML tags */}
         {(() => {
           const titleText =
@@ -155,7 +159,6 @@ export default function FeaturedArticleCard({ variant = 'default' }: FeaturedArt
                 html={titleText}
                 variant="titleMedium"
                 style={{
-                  // fontWeight removed - using variant default
                   marginBottom: SPACING.sm,
                   color: theme.colors.onSurface,
                 }}
@@ -168,7 +171,7 @@ export default function FeaturedArticleCard({ variant = 'default' }: FeaturedArt
             <Text
               variant="titleMedium"
               style={{
-                fontWeight: '700', // Increased from 600 to 700 for stronger hierarchy
+                fontWeight: '700',
                 marginBottom: SPACING.sm,
                 color: theme.colors.onSurface,
               }}
@@ -184,17 +187,20 @@ export default function FeaturedArticleCard({ variant = 'default' }: FeaturedArt
           <HtmlRenderer
             html={article.extract_html}
             maxLines={maxLines}
-            style={{ paddingTop: SPACING.md }}
+            variant="bodyMedium"
+            style={{ 
+              paddingTop: SPACING.md,
+              color: theme.colors.onSurfaceVariant,
+            }}
           />
         ) : article.extract ? (
           <Text
             variant="bodyMedium"
             style={{
-              // fontSize removed - using variant default
               lineHeight: 21,
               color: theme.colors.onSurfaceVariant,
               paddingTop: SPACING.md,
-            }} // Increased line height from 20 to 21 (1.5x ratio)
+            }}
             numberOfLines={maxLines}
           >
             {article.extract}
@@ -202,7 +208,7 @@ export default function FeaturedArticleCard({ variant = 'default' }: FeaturedArt
         ) : null}
       </Card.Content>
 
-      <ArticleImageModal
+      <ImageDialog
         visible={imageModalVisible}
         selectedImage={selectedImage}
         onClose={() => {

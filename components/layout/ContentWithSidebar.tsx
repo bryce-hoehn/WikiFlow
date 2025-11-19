@@ -2,6 +2,7 @@ import React from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { Card, Divider, Text, useTheme } from 'react-native-paper';
 import { LAYOUT } from '../../constants/layout';
+import { SPACING } from '../../constants/spacing';
 
 interface ContentWithSidebarProps {
   children: React.ReactNode;
@@ -42,8 +43,8 @@ export default function ContentWithSidebar({ children, sidebar }: ContentWithSid
         <View
           style={{
             flex: 1,
-            padding: 16,
-            gap: 16,
+            padding: SPACING.base,
+            gap: SPACING.base,
             backgroundColor: theme.colors.surface,
           }}
         >

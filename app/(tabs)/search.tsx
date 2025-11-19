@@ -31,6 +31,7 @@ export default function SearchScreen() {
   const totalHeaderHeight = HEADER_HEIGHT + insets.top;
   const wasFocusedRef = useRef(false);
 
+
   // Register scroll ref for scroll-to-top functionality
   useEffect(() => {
     registerScrollRef('/(tabs)/search', {
@@ -89,21 +90,24 @@ export default function SearchScreen() {
           content: (
             <FeaturedCarouselSection
               title="In The News"
-              items={featuredContent?.news?.map((newsItem, index) => {
-                // Use the first link for navigation and thumbnail
-                const firstLink = newsItem.links[0];
-                return {
-                  title: firstLink?.title || 'News Story',
-                  description:
-                    newsItem.story || firstLink?.description || firstLink?.title || 'Latest news',
-                  thumbnail: firstLink?.thumbnail,
-                  pageid: firstLink?.pageid,
-                  // Add the full article title for navigation
-                  articleTitle: firstLink?.title,
-                  // Add links array for the carousel item to handle multiple articles
-                  links: newsItem.links,
-                };
-              })}
+              items={featuredContent?.news
+                ?.map((newsItem, index) => {
+                  // Use the first link for navigation and thumbnail
+                  const firstLink = newsItem.links?.[0];
+                  if (!firstLink) return null; // Filter out items without links
+                  return {
+                    title: firstLink.title || 'News Story',
+                    description:
+                      newsItem.story || firstLink.description || firstLink.title || 'Latest news',
+                    thumbnail: firstLink.thumbnail,
+                    pageid: firstLink.pageid,
+                    // Add the full article title for navigation
+                    articleTitle: firstLink.title,
+                    // Add links array for the carousel item to handle multiple articles
+                    links: newsItem.links,
+                  };
+                })
+                .filter((item): item is NonNullable<typeof item> => item !== null)}
               cardType="news"
             />
           ),

@@ -3,6 +3,7 @@ import HtmlRenderer from '@/components/common/HtmlRenderer';
 import { LAYOUT } from '@/constants/layout';
 import { getHoverStyles } from '@/constants/motion';
 import { SPACING } from '@/constants/spacing';
+import { TYPOGRAPHY } from '@/constants/typography';
 import { useReducedMotion } from '@/hooks';
 import useBookmarkToggle from '@/hooks/ui/useBookmarkToggle';
 import useThumbnailLoader from '@/hooks/ui/useThumbnailLoader';
@@ -16,8 +17,8 @@ import { DidYouKnowItem } from '../../types/api/featured';
 import { RecommendationItem } from '../../types/components';
 import ResponsiveImage from '../common/ResponsiveImage';
 
-// Lazy load ArticleImageModal - only needed when user opens an image
-const ArticleImageModal = React.lazy(() => import('../article/ArticleImageModal'));
+// Lazy load ImageDialog - only needed when user opens an image
+const ImageDialog = React.lazy(() => import('../article/ImageDialog'));
 
 export type FeaturedCardItem = RecommendationItem | DidYouKnowItem;
 
@@ -142,7 +143,11 @@ function BaseFeaturedCard({
     return (
       <Text
         variant="bodyMedium"
-        style={{ fontSize: 14, lineHeight: 18, paddingTop: SPACING.md }}
+        style={{ 
+          // Using variant for fontSize, but need custom lineHeight calculation
+          lineHeight: TYPOGRAPHY.bodyMedium * TYPOGRAPHY.lineHeightNormal, 
+          paddingTop: SPACING.md 
+        }}
         numberOfLines={4}
       >
         {description}
@@ -158,24 +163,28 @@ function BaseFeaturedCard({
   const contentHeight = 260;
 
   return (
-    <View style={{ flex: 1, height: cardHeight }}>
-      {headerContent ? <View style={{ marginBottom: SPACING.md }}>{headerContent}</View> : null}
+    <View style={{ flex: 1, height: cardHeight, overflow: 'hidden' }}>
+      {headerContent ? (
+        <View
+          style={{
+            marginBottom: SPACING.md,
+            paddingHorizontal: SPACING.xs,
+            zIndex: 1,
+          }}
+        >
+          {headerContent}
+        </View>
+      ) : null}
       <Card
-        elevation={isHovered && Platform.OS === 'web' ? 4 : 2}
+        elevation={isHovered && Platform.OS === 'web' ? 4 : 1}
         style={{
           width: itemWidth || '100%',
           maxWidth: itemWidth || '100%',
           height: cardHeight,
-          borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+          borderRadius: theme.roundness * 3,
           overflow: 'hidden',
-          backgroundColor:
-            isHovered && Platform.OS === 'web'
-              ? theme.colors.surface
-              : theme.colors.elevation.level2,
-          display: 'flex',
-          flexDirection: 'column',
-          ...(Platform.OS === 'web' &&
-            getHoverStyles(isHovered, reducedMotion, { scale: 1.01 })),
+          backgroundColor: (isHovered && Platform.OS === 'web') ? theme.colors.surface : theme.colors.elevation.level2,
+          ...(Platform.OS === 'web' && getHoverStyles(isHovered, reducedMotion, { scale: 1.01 })),
         }}
         onPress={handleCardPress}
         {...(Platform.OS === 'web' && {
@@ -206,7 +215,6 @@ function BaseFeaturedCard({
               contentFit="cover"
               style={{ height: imageHeight, width: '100%' }}
               alt={`Thumbnail for ${displayTitle}`}
-              title={displayTitle}
               onPress={handleImagePress}
             />
           ) : (
@@ -219,12 +227,10 @@ function BaseFeaturedCard({
         </View>
         <Card.Content
           style={{
-            padding: SPACING.md,
+            padding: SPACING.base, // M3: 16dp padding for card content
             width: '100%',
             maxWidth: '100%',
             height: contentHeight,
-            display: 'flex',
-            flexDirection: 'column',
           }}
         >
           <View
@@ -295,7 +301,7 @@ function BaseFeaturedCard({
 
       {imageModalVisible && (
         <Suspense fallback={null}>
-          <ArticleImageModal
+          <ImageDialog
             visible={imageModalVisible}
             selectedImage={selectedImage}
             onClose={() => {

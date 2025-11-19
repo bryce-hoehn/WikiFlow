@@ -47,39 +47,78 @@ export default function Root({ children }: PropsWithChildren) {
             __html: `
             html {
               scroll-behavior: smooth;
-              background-color: #F9F9FF;
+              background-color: #111318 !important;
             }
             body {
-              background-color: #F9F9FF;
+              background-color: #111318 !important;
               margin: 0;
               padding: 0;
+              /* Hide scrollbar for Firefox */
+              scrollbar-width: none;
+              /* Hide scrollbar for IE and Edge */
+              -ms-overflow-style: none;
+            }
+            /* Hide scrollbar for Chrome, Safari and Opera */
+            body::-webkit-scrollbar {
+              display: none;
             }
             #root {
-              background-color: #F9F9FF;
+              background-color: #111318 !important;
               min-height: 100vh;
+              /* Hide scrollbar for Firefox */
+              scrollbar-width: none;
+              /* Hide scrollbar for IE and Edge */
+              -ms-overflow-style: none;
             }
-            @media (prefers-color-scheme: dark) {
-              html, body, #root {
-                background-color: #111318;
-              }
+            /* Hide scrollbar for Chrome, Safari and Opera */
+            #root::-webkit-scrollbar {
+              display: none;
             }
+            /* Ensure all potential white backgrounds are overridden */
             * {
               scroll-behavior: smooth;
+            }
+            /* Override any default white backgrounds from React Navigation/Expo Router */
+            [data-reactroot], [data-reactroot] > * {
+              background-color: #111318 !important;
+            }
+            /* Hide scrollbars on all scrollable elements */
+            * {
+              /* Hide scrollbar for Firefox */
+              scrollbar-width: none;
+              /* Hide scrollbar for IE and Edge */
+              -ms-overflow-style: none;
+            }
+            /* Hide scrollbar for Chrome, Safari and Opera */
+            *::-webkit-scrollbar {
+              display: none;
             }
           `,
           }}
         />
-        {/* Set initial background based on system preference */}
+        {/* Set initial background immediately - use dark theme by default to prevent white flash */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
             (function() {
-              const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-              const bgColor = prefersDark ? '#111318' : '#F9F9FF';
+              // Set dark background immediately to prevent any white flash
+              const bgColor = '#111318';
               document.documentElement.style.backgroundColor = bgColor;
               document.body.style.backgroundColor = bgColor;
               const root = document.getElementById('root');
-              if (root) root.style.backgroundColor = bgColor;
+              if (root) {
+                root.style.backgroundColor = bgColor;
+                // Also set as inline style with !important
+                root.setAttribute('style', root.getAttribute('style') + '; background-color: ' + bgColor + ' !important;');
+              }
+              // Create a global style tag immediately to override everything
+              let style = document.getElementById('initial-background-style');
+              if (!style) {
+                style = document.createElement('style');
+                style.id = 'initial-background-style';
+                style.textContent = 'html, body, #root { background-color: ' + bgColor + ' !important; }';
+                document.head.insertBefore(style, document.head.firstChild);
+              }
             })();
           `,
           }}

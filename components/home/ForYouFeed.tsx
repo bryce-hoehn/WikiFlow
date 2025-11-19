@@ -72,16 +72,16 @@ export default function ForYouFeed({ scrollY }: ForYouFeedProps) {
         const recs = await getRecommendationsRef.current(limit);
 
         if (isLoadMore) {
-          // Append and deduplicate for load more
+          // Append and deduplicate for load more (optimized single-pass)
           setRecommendations((prev: any[]) => {
-            const combined = [...prev, ...recs];
-            const seen = new Set<string>();
-            return combined.filter((rec) => {
+            const seen = new Set(prev.map((rec) => rec?.title).filter(Boolean));
+            const newRecs = recs.filter((rec) => {
               if (!rec?.title) return false;
               if (seen.has(rec.title)) return false;
               seen.add(rec.title);
               return true;
             });
+            return [...prev, ...newRecs];
           });
         } else {
           // Replace for initial load or refresh

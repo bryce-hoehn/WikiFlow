@@ -9,7 +9,8 @@ import { extractAltText } from './imageAltText';
 export { selectAll, selectOne } from 'css-select';
 export { render } from 'dom-serializer';
 export type { Element } from 'domhandler';
-export { removeElement, textContent } from 'domutils';
+export { getChildren, removeElement, textContent } from 'domutils';
+export { parseDocument } from 'htmlparser2';
 
 export const DEFAULT_SELECTORS_TO_REMOVE = [
   '.mw-editsection',
@@ -43,6 +44,225 @@ export function parseHtml(html: string) {
     return doc;
   } catch (err) {
     throw err;
+  }
+}
+
+/**
+ * Unified parser that parses HTML once and extracts all article structure.
+ * Returns DOM nodes instead of HTML strings to avoid expensive serialization.
+ * This eliminates triple parsing and defers serialization until needed.
+ */
+export interface ParsedArticleStructure {
+  dom: ReturnType<typeof parseDocument>;
+  infoboxElement: Element | null;
+  infoboxImage: { src: string; alt: string; width: number; height: number } | null;
+  introElementNodes: Element[];
+  sectionElements: Array<{ element: Element; heading: string; id: string }>;
+}
+
+export function parseArticleStructure(html: string): ParsedArticleStructure {
+  if (!html || typeof html !== 'string') {
+    throw new Error('Invalid HTML input');
+  }
+
+  try {
+    // Single parse - reuse this DOM for all extractions
+    const dom = parseHtml(html);
+
+    // Find body element (Wikipedia HTML has body)
+    const body = selectOne('body', dom) || dom;
+    const bodyChildren = getChildren(body).filter(
+      (node): node is Element => node.type === 'tag'
+    ) as Element[];
+
+    // Extract infobox
+    const infoboxElement = selectOne('.infobox', body) as Element | null;
+    let infoboxImage: { src: string; alt: string; width: number; height: number } | null = null;
+
+    if (infoboxElement) {
+      // Extract image from infobox DOM directly (no re-parse needed)
+      const imgElement = selectOne('img', [infoboxElement]) as Element | null;
+      if (imgElement && imgElement.attribs) {
+        const attrs = imgElement.attribs;
+        let src = attrs.src || attrs['data-src'] || '';
+
+        // Handle protocol-relative URLs
+        if (src.startsWith('//')) {
+          src = 'https:' + src;
+        }
+
+        // Handle relative URLs
+        if (src.startsWith('/') && !src.startsWith('//')) {
+          src = 'https://en.wikipedia.org' + src;
+        }
+
+        const width = parseInt(attrs.width || '400', 10);
+        const height = parseInt(attrs.height || '300', 10);
+        const alt = extractAltText(attrs, undefined, src);
+
+        infoboxImage = { src, alt, width, height };
+
+        // Remove the image row from infobox
+        let nodeToRemove = imgElement;
+        let current: any = imgElement;
+        while (current && current.parent) {
+          if (current.name === 'tr' || (current.name === 'td' && current.parent?.name === 'tr')) {
+            nodeToRemove = current.name === 'tr' ? current : current.parent;
+            break;
+          }
+          current = current.parent;
+        }
+        removeElement(nodeToRemove);
+      }
+      
+      // Remove the infobox from the DOM to prevent it from appearing in intro/sections
+      removeElement(infoboxElement);
+    }
+
+    // Find all section elements
+    const sectionElements = bodyChildren.filter((child: any) => child.name === 'section');
+
+    let introElementNodes: Element[] = [];
+    let sectionElementsWithHeading: Array<{ element: Element; heading: string; id: string }> = [];
+
+    if (sectionElements.length === 0) {
+      // No sections, fall back to h2-based approach
+      const h2Elements = selectAll('h2', body);
+      if (h2Elements.length === 0) {
+        // No h2s, all content is intro (infobox already removed from DOM)
+        introElementNodes = bodyChildren;
+      } else {
+        // Find first h2 and split there
+        const firstH2 = h2Elements.find((el) => 'name' in el && 'attribs' in el) as Element | undefined;
+        if (!firstH2) {
+          introElementNodes = bodyChildren;
+        } else {
+          let firstH2Index = -1;
+          for (let i = 0; i < bodyChildren.length; i++) {
+            const child = bodyChildren[i];
+            if (child === firstH2) {
+              firstH2Index = i;
+              break;
+            }
+            // Check if this child element contains the h2
+            const childH2s: Element[] = selectAll('h2', [child]).filter((el): el is Element => 'name' in el && 'attribs' in el);
+            if (childH2s.includes(firstH2)) {
+              firstH2Index = i;
+              break;
+            }
+          }
+
+          if (firstH2Index > -1) {
+            // Intro: everything before first h2 (infobox already removed from DOM)
+            introElementNodes = bodyChildren.slice(0, firstH2Index);
+
+            // Sections: each h2 and its content
+            h2Elements.forEach((h2, idx) => {
+              if (!('name' in h2) || !('attribs' in h2) || !('tagName' in h2)) return;
+              const h2Element = h2 as unknown as Element;
+              const heading = textContent(h2Element).trim() || 'Section';
+              let h2ContainerIndex = -1;
+              for (let i = 0; i < bodyChildren.length; i++) {
+                const child = bodyChildren[i];
+                if (child === h2Element) {
+                  h2ContainerIndex = i;
+                  break;
+                }
+                // Check if this child element contains the h2
+                const childH2s: Element[] = selectAll('h2', [child]).filter((el): el is Element => 'name' in el && 'attribs' in el);
+                if (childH2s.includes(h2Element)) {
+                  h2ContainerIndex = i;
+                  break;
+                }
+              }
+
+              if (h2ContainerIndex === -1) return;
+
+              const nextH2 = h2Elements[idx + 1];
+              let endIndex = bodyChildren.length;
+              if (nextH2 && 'name' in nextH2 && 'attribs' in nextH2 && 'tagName' in nextH2) {
+                const nextH2Element = nextH2 as unknown as Element;
+              for (let i = h2ContainerIndex + 1; i < bodyChildren.length; i++) {
+                const child = bodyChildren[i];
+                if (child === nextH2Element) {
+                  endIndex = i;
+                  break;
+                }
+                // Check if this child element contains the next h2
+                const childH2s: Element[] = selectAll('h2', [child]).filter((el): el is Element => 'name' in el && 'attribs' in el);
+                if (childH2s.includes(nextH2Element)) {
+                  endIndex = i;
+                  break;
+                }
+              }
+            }
+
+            const sectionNodes = bodyChildren.slice(h2ContainerIndex, endIndex);
+            if (sectionNodes.length > 0) {
+              // Create a container element for this section
+              const sectionContainer = parseDocument('');
+              sectionContainer.children = sectionNodes;
+              sectionElementsWithHeading.push({
+                element: sectionContainer as any,
+                heading,
+                id: `section-${idx}`,
+              });
+            }
+          });
+          }
+        }
+      }
+    } else {
+      // Process sections
+      let firstH2SectionIndex = -1;
+      for (let i = 0; i < sectionElements.length; i++) {
+        const sectionH2s = selectAll('h2', [sectionElements[i]]);
+        if (sectionH2s.length > 0) {
+          firstH2SectionIndex = i;
+          break;
+        }
+      }
+
+      if (firstH2SectionIndex === -1) {
+        // No h2 found, all sections are intro (infobox already removed from DOM)
+        introElementNodes = sectionElements;
+      } else {
+        // Intro: sections before first h2 section (infobox already removed from DOM)
+        introElementNodes = sectionElements.slice(0, firstH2SectionIndex);
+
+        // Sections: each section with an h2
+        let sectionIdx = 0;
+        sectionElements.slice(firstH2SectionIndex).forEach((section: Element) => {
+          const sectionH2s = selectAll('h2', [section]);
+          if (sectionH2s.length > 0) {
+            const heading = textContent(sectionH2s[0]).trim() || 'Section';
+            sectionElementsWithHeading.push({
+              element: section,
+              heading,
+              id: `section-${sectionIdx}`,
+            });
+            sectionIdx++;
+          }
+        });
+      }
+    }
+
+    return {
+      dom,
+      infoboxElement,
+      infoboxImage,
+      introElementNodes,
+      sectionElements: sectionElementsWithHeading,
+    };
+  } catch (err) {
+    // Fallback: return minimal structure
+    return {
+      dom: parseDocument(''),
+      infoboxElement: null,
+      infoboxImage: null,
+      introElementNodes: [],
+      sectionElements: [],
+    };
   }
 }
 

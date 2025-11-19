@@ -2,7 +2,7 @@
   "expo": {
     "name": "WikiFlow",
     "slug": "wikiflow",
-    "version": "0.1.0-beta",
+    "version": "0.2.0-beta",
     "description": "A modern, cross-platform Wikipedia reader built with React Native and Expo.",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -60,15 +60,7 @@
       "startUrl": "/"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "asyncRoutes": {
-            "web": true,
-            "default": "development"
-          }
-        }
-      ],
+      ["expo-router"],
       [
         "expo-splash-screen",
         {
@@ -85,7 +77,7 @@
       "expo-localization",
       "expo-font",
       "expo-asset",
-      "expo-audio",
+      "expo-av",
       "expo-video"
     ],
     "experiments": {
@@ -103,6 +95,8 @@
     },
     "updates": {
       "url": "https://u.expo.dev/57646a65-2954-4207-a890-a5358e8043bc"
-    }
-  }
+    },
+    "sdkVersion": "54.0.0"
+  },
+  "name": "wikiflow"
 }

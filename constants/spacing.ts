@@ -52,43 +52,21 @@ export const SPACING = {
 } as const;
 
 /**
- * Common spacing patterns for consistency
- * All values align with MD3's 4dp increment system
- * Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
+ * Component-specific height constants
+ * Based on Material Design 3 specifications
+ * 
+ * Note: Tab height (48dp) and icon button size (48dp) use SPACING.xxl
+ * These are kept separate for semantic clarity and component-specific documentation
  */
-export const SPACING_PATTERNS = {
-  // Card padding - 16dp (2x base unit)
-  // MD3: Common padding value following 4dp increments
-  // Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
-  cardPadding: SPACING.base, // 16dp
+export const HEIGHTS = {
+  // Search Bar Height
+  // MD3: Search bars use 56dp height
+  // Reference: https://m3.material.io/components/search/specs
+  searchBar: 56, // 56dp
 
-  // Card margin - 16dp (2x base unit)
-  // MD3: Common margin value following 4dp increments
-  // Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
-  cardMargin: SPACING.base, // 16dp
-
-  // Section spacing - 24dp (3x base unit, matches spacer width)
-  // MD3: Spacers between panes measure 24dp wide
-  // Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
-  sectionSpacing: SPACING.lg, // 24dp
-
-  // List item padding - 8dp (1x base unit)
-  // MD3: Base unit of the 8dp grid system
-  // Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
-  listItemPadding: SPACING.sm, // 8dp
-
-  // Icon spacing - 12dp (1.5x base unit)
-  // MD3: 1.5x the base 8dp unit
-  // Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
-  iconSpacing: SPACING.md, // 12dp
-
-  // Small gaps - 4dp (0.5x base unit)
-  // MD3: Minimum increment for padding measurements
-  // Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
-  gapSmall: SPACING.xs, // 4dp
-
-  // Medium gaps - 8dp (1x base unit)
-  // MD3: Base unit of the 8dp grid system
-  // Reference: https://m3.material.io/foundations/layout/understanding-layout/spacing
-  gapMedium: SPACING.sm, // 8dp
+  // App Bar Height
+  // MD3: Small/Center-aligned app bars use 64dp height
+  // Reference: https://m3.material.io/components/app-bars/overview
+  // Note: This equals SPACING.xxxl (64dp) but kept for semantic clarity
+  appBar: 64, // 64dp (same as SPACING.xxxl)
 } as const;

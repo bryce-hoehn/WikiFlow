@@ -29,6 +29,7 @@ interface ArticleToolbarProps {
   onSectionPress: (sectionId: string) => void;
   currentFontSize?: number;
   visible?: boolean;
+  fabVisible?: boolean; // Whether the FAB is visible (affects toolbar positioning)
 }
 
 export default function ArticleToolbar({
@@ -41,6 +42,7 @@ export default function ArticleToolbar({
   onSectionPress,
   currentFontSize = 16,
   visible = true,
+  fabVisible = false,
 }: ArticleToolbarProps) {
   const theme = useTheme();
   const { reducedMotion } = useReducedMotion();
@@ -50,6 +52,9 @@ export default function ArticleToolbar({
   const [tocVisible, setTocVisible] = useState(false);
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
+  // Animated value for toolbar alignment: 0 = centered, 1 = left-aligned
+  // Only move left on smaller screens; keep centered on large screens
+  const alignmentProgress = useSharedValue(fabVisible && !isLargeScreen ? 1 : 0);
 
   const openTOC = () => {
     hapticLight();
@@ -104,6 +109,31 @@ export default function ArticleToolbar({
     }
   }, [visible, translateY, opacity, reducedMotion]);
 
+  // Animate toolbar alignment based on FAB visibility
+  // Only move left on smaller screens; keep centered on large screens
+  useEffect(() => {
+    const targetValue = fabVisible && !isLargeScreen ? 1 : 0;
+    if (reducedMotion) {
+      alignmentProgress.value = targetValue;
+    } else {
+      alignmentProgress.value = withTiming(targetValue, { 
+        duration: MOTION.durationMedium 
+      });
+    }
+  }, [fabVisible, isLargeScreen, alignmentProgress, reducedMotion]);
+
+  const fabWidth = 56;
+  const bottomSpacing = Platform.select({
+    web: isLargeScreen ? 24 : 16,
+    default: 16,
+  });
+  const fabRightSpacing = bottomSpacing;
+  const spacingBetweenFabAndToolbar = SPACING.sm;
+  const fabTotalWidth = fabWidth + fabRightSpacing + spacingBetweenFabAndToolbar;
+  const toolbarBottom = insets.bottom + bottomSpacing;
+  const toolbarMaxWidth = width - fabTotalWidth;
+  const toolbarLeftPadding = SPACING.base;
+
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: translateY.value }],
@@ -111,22 +141,17 @@ export default function ArticleToolbar({
     };
   });
 
-  // MD3 toolbar positioning with FAB integration
-  // Toolbar: 56dp height, 4dp elevation, positioned to avoid FAB overlap
-  // FAB: 56dp size, positioned at bottom right with 16dp (mobile) or 24dp (desktop) spacing
-  // Note: Article page has no bottom tab bar, so only account for safe area insets
-  const fabWidth = 56;
-  const bottomSpacing = Platform.select({
-    web: isLargeScreen ? 24 : 16,
-    default: 16,
+  const toolbarAnimatedStyle = useAnimatedStyle(() => {
+    const centeredMaxWidth = width - (toolbarLeftPadding * 2);
+    const maxWidth = alignmentProgress.value * toolbarMaxWidth + (1 - alignmentProgress.value) * centeredMaxWidth;
+    const shiftAmount = SPACING.sm;
+    const translateX = -shiftAmount * alignmentProgress.value;
+    
+    return {
+      maxWidth,
+      transform: [{ translateX }],
+    };
   });
-  const fabRightSpacing = bottomSpacing;
-  const fabTotalWidth = fabWidth + fabRightSpacing;
-  
-  // Toolbar spacing from bottom edge (no bottom tab bar on article page)
-  // Use same spacing as FAB to align them at the same height
-  const toolbarBottom = insets.bottom + bottomSpacing;
-  const toolbarMaxWidth = width - fabTotalWidth - SPACING.base;
 
   return (
     <Animated.View 
@@ -137,23 +162,26 @@ export default function ArticleToolbar({
           pointerEvents: 'box-none' as any,
           bottom: toolbarBottom,
           zIndex: 999,
+          alignItems: 'center', // Always center the container
+          justifyContent: 'center',
         }
       ]}
     >
+      <Animated.View style={toolbarAnimatedStyle}>
       <Surface
-        elevation={4}
+          elevation={1}
         style={[
           styles.toolbar,
           {
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.roundness * 7, // 28dp for pill shape (half of 56dp height)
-            maxWidth: toolbarMaxWidth,
+              backgroundColor: theme.colors.elevation.level3,
+              borderRadius: theme.roundness * 7,
           },
         ]}
       >
         <IconButton 
           icon="home" 
           size={24} 
+          iconColor={theme.colors.onSurfaceVariant}
           onPress={handleHome} 
           accessibilityLabel="Go to home"
           accessibilityHint="Returns to home screen"
@@ -162,6 +190,7 @@ export default function ArticleToolbar({
         <IconButton
           icon="minus"
           size={24}
+          iconColor={theme.colors.onSurfaceVariant}
           onPress={handleZoomOut}
           disabled={!canZoomOut}
           accessibilityLabel="Decrease font size"
@@ -171,6 +200,7 @@ export default function ArticleToolbar({
         <IconButton
           icon="format-size"
           size={24}
+          iconColor={theme.colors.onSurfaceVariant}
           onPress={handleResetZoom}
           accessibilityLabel="Reset font size"
           accessibilityHint={`Resets article font size to default. Current size: ${currentFontSize}px`}
@@ -179,6 +209,7 @@ export default function ArticleToolbar({
         <IconButton
           icon="plus"
           size={24}
+          iconColor={theme.colors.onSurfaceVariant}
           onPress={handleZoomIn}
           disabled={!canZoomIn}
           accessibilityLabel="Increase font size"
@@ -188,11 +219,13 @@ export default function ArticleToolbar({
         <IconButton
           icon="format-list-bulleted"
           size={24}
+          iconColor={theme.colors.onSurfaceVariant}
           onPress={openTOC}
           accessibilityLabel="Table of contents"
           accessibilityHint="Opens table of contents to navigate article sections"
         />
       </Surface>
+      </Animated.View>
 
       <Portal>
         <Modal
@@ -243,8 +276,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    // alignItems, justifyContent, and paddingLeft are set dynamically to left-align when FAB is present
+    // Default to flex-start to prevent centering
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
   },
   toolbar: {
     flexDirection: 'row',

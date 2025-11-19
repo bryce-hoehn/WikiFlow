@@ -7,17 +7,17 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { MOTION } from '../../constants/motion';
 import { useReducedMotion } from '../../hooks';
 
-interface ArticleImageModalProps {
+interface ImageDialogProps {
   visible: boolean;
   selectedImage: { uri: string; alt?: string } | null;
   onClose: () => void;
 }
 
-export default function ArticleImageModal({
+export default function ImageDialog({
   visible,
   selectedImage,
   onClose,
-}: ArticleImageModalProps) {
+}: ImageDialogProps) {
   const theme = useTheme();
   const closeButtonRef = useRef<any>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -147,9 +147,7 @@ export default function ArticleImageModal({
     >
       <View
         style={{ flex: 1, backgroundColor: theme.colors.scrim + 'E6' }} // 90% opacity (0xE6 in hex = 230/255 ≈ 0.9)
-        accessible={true}
-        accessibilityLabel="Image modal content"
-        importantForAccessibility="yes"
+        // Remove accessible prop to prevent semantic HTML wrapper that might conflict with Appbar.Content h1
       >
         <Appbar.Header
           style={{
@@ -158,8 +156,8 @@ export default function ArticleImageModal({
             paddingTop: 0,
             elevation: 0,
           }}
-          accessible={true}
           accessibilityRole="toolbar"
+          // Remove accessible prop - Appbar.Header handles its own accessibility
         >
           <Appbar.Action
             ref={closeButtonRef}
@@ -174,8 +172,7 @@ export default function ArticleImageModal({
           <Appbar.Content
             title={selectedImage?.alt || 'Image'}
             titleStyle={{ color: theme.colors.surface }}
-            accessible={true}
-            accessibilityRole="header"
+            // Appbar.Content already renders as h1 on web, don't add header role
           />
         </Appbar.Header>
 

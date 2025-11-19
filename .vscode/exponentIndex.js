@@ -5,6 +5,6 @@ var { Component } = React;
 var ReactNative = require('/home/bryce/Nextcloud/Projects/WikipediaExpo/node_modules/react-native');
 var { AppRegistry } = ReactNative;
 AppRegistry.registerRunnable('main', function(appParameters) {
-    AppRegistry.runApplication('WikipediaExpo', appParameters);
+    AppRegistry.runApplication('WikiFlow', appParameters);
 });
 require('/home/bryce/Nextcloud/Projects/WikipediaExpo/index.android.js');

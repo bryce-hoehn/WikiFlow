@@ -1,23 +1,25 @@
-import { FlashList } from '@shopify/flash-list';
 import React, { useCallback, useRef, useState } from 'react';
 import { LayoutChangeEvent, useWindowDimensions, View } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
+import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel';
 import { SPACING } from '../../constants/spacing';
+import { useReducedMotion } from '../../hooks';
 import { RecommendationItem } from '../../types/components';
 import { CardType, getCardComponent } from '../../utils/cardUtils';
 
-interface SimpleFeaturedCarouselProps {
+interface FeaturedCarouselProps {
   items: RecommendationItem[];
   cardType?: CardType;
 }
 
-export default function SimpleFeaturedCarousel({
+export default function FeaturedCarousel({
   items,
   cardType = 'generic',
-}: SimpleFeaturedCarouselProps) {
+}: FeaturedCarouselProps) {
   const theme = useTheme();
+  const { reducedMotion } = useReducedMotion();
   const { width: windowWidth } = useWindowDimensions();
-  const flashListRef = useRef<any>(null);
+  const carouselRef = useRef<ICarouselInstance>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(windowWidth);
 
@@ -32,29 +34,23 @@ export default function SimpleFeaturedCarousel({
     [containerWidth]
   );
 
-  // Calculate dimensions: use measured container width instead of full window width
-  const horizontalPadding = 0;
-  const cardWidth = containerWidth - horizontalPadding * 2;
-  // Item width matches card width for proper snap interval
-  const itemWidth = cardWidth;
+  const cardWidth = containerWidth;
 
-  const scrollToIndex = (index: number) => {
-    if (flashListRef.current) {
-      flashListRef.current.scrollToIndex({ index, animated: true });
-      setCurrentIndex(index);
+  const scrollToIndex = (index: number, animated: boolean = true) => {
+    if (carouselRef.current && items.length > 0) {
+      const normalizedIndex = ((index % items.length) + items.length) % items.length;
+      carouselRef.current.scrollTo({ index: normalizedIndex, animated });
     }
   };
 
   const handlePrevious = () => {
     if (items.length === 0) return;
-    // Loop: if at first item, go to last item
     const newIndex = currentIndex === 0 ? items.length - 1 : currentIndex - 1;
     scrollToIndex(newIndex);
   };
 
   const handleNext = () => {
     if (items.length === 0) return;
-    // Loop: if at last item, go to first item
     const newIndex = currentIndex === items.length - 1 ? 0 : currentIndex + 1;
     scrollToIndex(newIndex);
   };
@@ -71,62 +67,44 @@ export default function SimpleFeaturedCarousel({
           ? ({ ...item, html: item.text || item.description || '' } as RecommendationItem)
           : item;
 
-      // On This Day cards have a year header above the card, so need extra height
-      const needsExtraHeight = currentCardType === 'on-this-day';
-      const wrapperHeight = needsExtraHeight ? 458 : 410; // ~48px for year header (titleLarge ~32px) + margin (12px) + bottom padding (4px)
-      
+      const isOnThisDay = currentCardType === 'on-this-day';
+      const cardHeight = isOnThisDay ? 460 : 420;
+      const itemWidth = cardWidth - SPACING.sm; // Account for card shadows
+      const totalHeight = cardHeight + SPACING.xs + (isOnThisDay ? SPACING.md : SPACING.sm);
+
       return (
-        <View style={{ width: itemWidth, height: wrapperHeight, paddingLeft: 4, paddingRight: 8, paddingBottom: needsExtraHeight ? 8 : 4 }}>
-          <CardComponent item={cardItem as any} theme={theme} itemWidth={cardWidth - 12} />
+        <View style={{ width: cardWidth, height: totalHeight, alignItems: 'center' }}>
+          <CardComponent item={cardItem as any} theme={theme} itemWidth={itemWidth} />
         </View>
       );
     },
-    [cardType, theme, itemWidth, cardWidth]
+    [cardType, theme, cardWidth]
   );
 
+  // Calculate carousel height based on card type
+  // Regular: 420 + 4 + 8 = 432px, On-this-day: 460 + 4 + 12 = 476px
+  const isOnThisDay = cardType === 'on-this-day';
+  const maxCardHeight = isOnThisDay ? 460 : 420;
+  const maxTotalHeight = maxCardHeight + SPACING.xs + (isOnThisDay ? SPACING.md : SPACING.sm);
+  const carouselHeight = maxTotalHeight; // Match exact card height
+
   return (
-    <View
-      style={{
-        position: 'relative'
-      }}
-      onLayout={handleLayout}
-    >
-      <FlashList
-        ref={flashListRef}
+    <View style={{ position: 'relative' }} onLayout={handleLayout}>
+      <Carousel
+        ref={carouselRef}
+        width={cardWidth}
+        height={carouselHeight}
         data={items}
         renderItem={renderItem}
-        keyExtractor={(item, index) => `${cardType}-${index}`}
-        {...({ estimatedItemSize: itemWidth } as any)}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={itemWidth}
-        decelerationRate="fast"
-        contentContainerStyle={{
-          paddingHorizontal: horizontalPadding,
-          paddingRight: (horizontalPadding || 0) + 8,
-        }}
-        style={{ height: 455 }} // Increased to accommodate On This Day cards with year header
-        onMomentumScrollEnd={(event) => {
-          if (items.length === 0) return;
-          const index = Math.round(event.nativeEvent.contentOffset.x / itemWidth);
-          // Clamp index to valid range
-          const clampedIndex = Math.max(0, Math.min(index, items.length - 1));
-          setCurrentIndex(clampedIndex);
-        }}
+        loop={true}
+        enabled={!reducedMotion}
+        autoPlay={false}
+        scrollAnimationDuration={reducedMotion ? 0 : 300}
+        onSnapToItem={setCurrentIndex}
       />
 
-      {/* Page indicators and navigation controls */}
       {items.length > 1 && (
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingTop: SPACING.xs,
-            paddingBottom: 0,
-            gap: SPACING.md,
-          }}
-        >
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: SPACING.md, marginTop: SPACING.sm }}>
           <IconButton
             icon="chevron-left"
             iconColor={theme.colors.onSurfaceVariant}
@@ -136,22 +114,19 @@ export default function SimpleFeaturedCarousel({
             accessibilityLabel="Previous item"
             accessibilityHint="Navigate to the previous featured item. Loops to the last item if at the beginning."
           />
-
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
             {items.map((_, index) => (
               <View
                 key={index}
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: theme.roundness * 1, // 4dp equivalent (4dp * 1)
-                  backgroundColor:
-                    index === currentIndex ? theme.colors.primary : theme.colors.surfaceVariant,
+                  width: SPACING.sm,
+                  height: SPACING.sm,
+                  borderRadius: theme.roundness,
+                  backgroundColor: index === currentIndex ? theme.colors.primary : theme.colors.surfaceVariant,
                 }}
               />
             ))}
           </View>
-
           <IconButton
             icon="chevron-right"
             iconColor={theme.colors.onSurfaceVariant}

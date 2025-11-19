@@ -16,7 +16,7 @@ export default function SearchResultsList({
       data={suggestions}
       headerTitle="Search Results"
       getTitle={(item) => item.title}
-      getDescription={(item) => item.description}
+      getDescription={(item) => item.description || ''}
       getThumbnail={(item) => item.image || null}
       fallbackIcon="file-document-outline"
       onItemPress={(item) => onSuggestionClick(item.title)}

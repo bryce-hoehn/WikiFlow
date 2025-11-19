@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
+import { SPACING } from '../../constants/spacing';
 
 interface ErrorStateProps {
   title?: string;
@@ -33,14 +34,14 @@ export default function ErrorState({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 32,
+        padding: SPACING.xl,
         backgroundColor: theme.colors.background,
       }}
     >
       <Text
         variant="headlineMedium"
         style={{
-          marginBottom: 16,
+          marginBottom: SPACING.base,
           textAlign: 'center',
           color: theme.colors.onSurface,
         }}

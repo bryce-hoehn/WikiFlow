@@ -18,9 +18,8 @@ export default function ArticleSkeleton() {
   const fadeAnim = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
 
   const isLargeScreen = width >= LAYOUT.DESKTOP_BREAKPOINT;
-  // Match Article.tsx width calculation - use ARTICLE_MAX_WIDTH instead of MAX_CONTENT_WIDTH
-  const maxArticleWidth = Math.min(width - 32, LAYOUT.ARTICLE_MAX_WIDTH);
-  const horizontalPadding = 8; // Match Article.tsx paddingHorizontal: 8
+  // Match Article.tsx padding system - use default padding of 16px
+  const defaultPadding = 16;
 
   // Shimmer animation (skip if reduced motion is enabled)
   useEffect(() => {
@@ -114,10 +113,8 @@ export default function ArticleSkeleton() {
     >
       <View
         style={{
-          maxWidth: maxArticleWidth,
-          alignSelf: 'center',
           width: '100%',
-          paddingHorizontal: horizontalPadding,
+          paddingHorizontal: defaultPadding,
           paddingVertical: SPACING.base,
         }}
       >

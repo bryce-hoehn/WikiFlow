@@ -38,6 +38,13 @@ The app is functional but has not been thoroughly tested. Consider it a work in 
 - **Categories**: Browse by topic with visual navigation
 - **Trending**: Most-read articles
 
+### Reading Experience
+
+- **Customizable Reading Settings**: Adjust font size, line height, paragraph spacing, and content padding
+- **Media Support**: Video and audio players with custom controls for Wikipedia media content
+- **Incremental Loading**: Articles load progressively for better performance
+- **Image Optimization**: Automatic image optimization and lazy loading
+
 ### Accessibility
 
 - **Screen Reader Support**: ARIA labels and accessibility hints throughout
@@ -55,6 +62,8 @@ The app is functional but has not been thoroughly tested. Consider it a work in 
 - **TypeScript** for type safety
 - **TanStack Query** for API state management
 - **AsyncStorage** for local data persistence
+- **expo-video** and **expo-av** for media playback
+- **react-native-render-html** for article rendering
 
 ## Getting Started
 
@@ -97,11 +106,23 @@ The app is functional but has not been thoroughly tested. Consider it a work in 
 WikipediaExpo/
 ├── app/                    # Expo Router screens
 │   ├── (tabs)/            # Main navigation tabs
-│   └── article/            # Article detail screens
+│   ├── article/            # Article detail screens
+│   └── subcategory/        # Category browsing
 ├── components/             # Reusable UI components
+│   ├── article/           # Article rendering components
+│   │   ├── media/        # Video/audio players
+│   │   ├── renderers/    # HTML renderers
+│   │   └── hooks/        # Article-specific hooks
+│   ├── common/            # Shared UI components
+│   ├── featured/          # Featured content cards
+│   └── search/            # Search components
 ├── hooks/                 # Custom React hooks
+│   ├── articles/         # Article-related hooks
+│   ├── storage/          # Local storage hooks
+│   └── ui/               # UI interaction hooks
 ├── api/                   # Wikipedia API integrations
 ├── context/                # React Context providers
+├── constants/              # Design system constants
 ├── utils/                  # Helper functions
 └── types/                  # TypeScript definitions
 ```
@@ -109,10 +130,8 @@ WikipediaExpo/
 ## Known Limitations
 
 - Recommendation algorithm is extremely basic
-- Performance optimizations needed, especially for initial load
 - Error handling could be more robust
 - Limited testing
-- Media player does not work
 - API calls are directly to Wikimedia's public API, so network speed is limited to their rate limits
 - The codebase is still being refined as I learn
 
@@ -126,6 +145,8 @@ This project uses many excellent open-source libraries. Major dependencies inclu
 - **React Native Reanimated** - Animations
 - **Expo Router** - File-based routing
 - **FlashList** - High-performance list rendering
+- **expo-video** & **expo-av** - Media playback
+- **react-native-render-html** - HTML rendering
 
 All dependencies are listed in `package.json` with their respective licenses. Most use MIT or Apache 2.0 licenses.
 

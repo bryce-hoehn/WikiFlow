@@ -4,6 +4,8 @@ import ArticleDrawerWrapper from '@/components/layout/ArticleDrawerWrapper';
 import ContentWithSidebar from '@/components/layout/ContentWithSidebar';
 import { LAYOUT } from '@/constants/layout';
 import { getHoverStyles } from '@/constants/motion';
+import { SPACING } from '@/constants/spacing';
+import { TYPOGRAPHY } from '@/constants/typography';
 import { useReducedMotion } from '@/hooks';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
@@ -21,7 +23,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import ArticleImageModal from '../../components/article/ArticleImageModal';
+import ImageDialog from '../../components/article/ImageDialog';
 import ErrorState from '../../components/common/ErrorState';
 import StandardEmptyState from '../../components/common/StandardEmptyState';
 import SubcategorySkeleton from '../../components/common/SubcategorySkeleton';
@@ -199,7 +201,7 @@ export default function SubCategories() {
           title={subcategory.title.replace(/_/g, ' ')}
           left={(props) => <List.Icon {...props} icon="folder-outline" />}
           onPress={() => onPress(subcategory.title)}
-          style={{ paddingVertical: 8 }}
+          style={{ paddingVertical: SPACING.sm }}
         />
       </Surface>
     );
@@ -235,12 +237,20 @@ export default function SubCategories() {
                   flex: 1,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  paddingHorizontal: 8,
+                  paddingHorizontal: SPACING.sm,
                   paddingTop: insets.top,
                 }}
               >
                 <Appbar.BackAction onPress={handleBack} />
-                <Text style={{ fontWeight: '700', fontSize: 20, flex: 1 }}>
+                <Text
+                  style={{
+                    // MD3: Small app bars use 22sp title
+                    // Reference: https://m3.material.io/components/app-bars/overview
+                    fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+                    fontSize: TYPOGRAPHY.appBarTitle,
+                    flex: 1,
+                  }}
+                >
                   {title?.replace(/_/g, ' ') || 'Category'}
                 </Text>
               </View>
@@ -270,12 +280,20 @@ export default function SubCategories() {
                   flex: 1,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  paddingHorizontal: 8,
+                  paddingHorizontal: SPACING.sm,
                   paddingTop: insets.top,
                 }}
               >
                 <Appbar.BackAction onPress={handleBack} />
-                <Text style={{ fontWeight: '700', fontSize: 20, flex: 1 }}>
+                <Text
+                  style={{
+                    // MD3: Small app bars use 22sp title
+                    // Reference: https://m3.material.io/components/app-bars/overview
+                    fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+                    fontSize: TYPOGRAPHY.appBarTitle,
+                    flex: 1,
+                  }}
+                >
                   {title?.replace(/_/g, ' ') || 'Category'}
                 </Text>
               </View>
@@ -333,7 +351,7 @@ export default function SubCategories() {
               >
                 {/* Subcategories Section */}
                 {subcategories.length > 0 && (
-                  <View style={{ padding: 16 }}>
+                  <View style={{ padding: SPACING.base }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                       <Text variant="titleMedium" style={{ flex: 1 }}>
                         Subcategories
@@ -359,7 +377,7 @@ export default function SubCategories() {
                         showsHorizontalScrollIndicator={false}
                         showsVerticalScrollIndicator={!subcategoriesHorizontal}
                         scrollEnabled={true}
-                        contentContainerStyle={{ paddingRight: 16 }}
+                        contentContainerStyle={{ paddingRight: SPACING.base }}
                         key={`subcategories-${subcategoriesHorizontal}`}
                       />
                     </View>
@@ -369,7 +387,7 @@ export default function SubCategories() {
                 {/* Articles Section */}
                 {articles.length > 0 && (
                   <View
-                    style={{ padding: 16, paddingTop: subcategories.length > 0 ? 0 : 16, flex: 1 }}
+                    style={{ padding: SPACING.base, paddingTop: subcategories.length > 0 ? 0 : SPACING.base, flex: 1 }}
                   >
                     <Text variant="titleMedium" style={{ marginBottom: 12 }}>
                       Articles
@@ -392,7 +410,7 @@ export default function SubCategories() {
         </View>
       </ContentWithSidebar>
 
-      <ArticleImageModal
+      <ImageDialog
         visible={imageModalVisible}
         selectedImage={selectedImage}
         onClose={() => {

@@ -1,5 +1,6 @@
+import { SPACING } from '@/constants/spacing';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Searchbar, useTheme } from 'react-native-paper';
 
 interface BookmarkSearchBarProps {
@@ -7,6 +8,10 @@ interface BookmarkSearchBarProps {
   onSearchChange: (query: string) => void;
 }
 
+/**
+ * Bookmark search bar component
+ * Per MD3 specs: https://m3.material.io/components/search/specs
+ */
 export default function BookmarkSearchBar({ searchQuery, onSearchChange }: BookmarkSearchBarProps) {
   const theme = useTheme();
 
@@ -16,9 +21,30 @@ export default function BookmarkSearchBar({ searchQuery, onSearchChange }: Bookm
         placeholder="Search bookmarks..."
         onChangeText={onSearchChange}
         value={searchQuery}
-        style={styles.searchbar}
+        mode="bar"
+        style={[
+          styles.searchbar,
+          {
+            // MD3: elevation.level1 for search bars
+            elevation: Platform.select({ android: 1, ios: 0, web: 1 }),
+            backgroundColor: theme.colors.elevation.level1,
+            // MD3: corner.medium (12dp) for search bars
+            borderRadius: theme.roundness * 3,
+            // MD3: Ensure 56dp height for search bars
+            minHeight: 56,
+            height: 56,
+          },
+        ]}
         inputStyle={styles.input}
         iconColor={theme.colors.onSurfaceVariant}
+        // MD3 Accessibility: Proper labels and hints - per https://m3.material.io/components/search/accessibility
+        accessibilityLabel="Search bookmarks"
+        accessibilityRole="search"
+        accessibilityHint={
+          searchQuery && searchQuery.length > 0
+            ? `Searching for "${searchQuery}". Results will filter as you type.`
+            : 'Enter search terms to filter your bookmarks'
+        }
       />
     </View>
   );
@@ -26,13 +52,16 @@ export default function BookmarkSearchBar({ searchQuery, onSearchChange }: Bookm
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    // MD3: 16dp horizontal padding
+    paddingHorizontal: SPACING.base,
+    // MD3: 8dp vertical padding
+    paddingVertical: SPACING.sm,
   },
   searchbar: {
-    elevation: 0,
+    // Elevation set dynamically in component
   },
   input: {
-    fontSize: 16,
+    // fontSize removed - using variant default from react-native-paper
+    // MD3: Text color handled by theme
   },
 });

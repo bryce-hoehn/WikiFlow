@@ -130,7 +130,7 @@ export default function RandomFeed({ scrollY }: RandomFeedProps) {
           },
           {
             label: 'Browse Popular',
-            action: () => router.push('/(tabs)'),
+            action: () => router.push('/(tabs)?tab=hot'),
             icon: 'trending-up',
           },
           {

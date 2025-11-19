@@ -1,10 +1,9 @@
-import React from 'react';
-import { View } from 'react-native';
-import { List, useTheme } from 'react-native-paper';
-import { SPACING } from '../../constants/spacing';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Platform, View } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { MOTION } from '../../constants/motion';
+import { SPACING } from '../../constants/spacing';
 import { useReducedMotion } from '../../hooks';
-import { Animated, Platform } from 'react-native';
 
 interface SearchResultSkeletonProps {
   index?: number;
@@ -17,10 +16,10 @@ interface SearchResultSkeletonProps {
 export default function SearchResultSkeleton({ index = 0 }: SearchResultSkeletonProps) {
   const theme = useTheme();
   const { reducedMotion } = useReducedMotion();
-  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
-  const fadeAnim = React.useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (reducedMotion) {
       fadeAnim.setValue(1);
       shimmerAnim.setValue(0);
@@ -105,26 +104,32 @@ export default function SearchResultSkeleton({ index = 0 }: SearchResultSkeleton
     );
   };
 
+  const thumbnailSize = 56; // Match BaseListWithHeader thumbnail size
+
   return (
     <Animated.View style={{ opacity: fadeAnim }}>
-      <List.Item
-        title=""
-        description=""
-        left={() => (
-          <SkeletonBox
-            width={40}
-            height={40}
-            borderRadius={theme.roundness * 1} // 4dp equivalent (4dp * 1)
-            style={{ marginRight: 16 }}
-          />
-        )}
-        style={{ paddingVertical: SPACING.sm }}
+      <View
+        style={{
+          backgroundColor: theme.colors.elevation.level2,
+          marginHorizontal: SPACING.sm,
+          marginVertical: SPACING.xs / 2,
+          borderRadius: theme.roundness,
+          padding: SPACING.base,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
       >
+        <SkeletonBox
+          width={thumbnailSize}
+          height={thumbnailSize}
+          borderRadius={theme.roundness * 2}
+          style={{ marginRight: SPACING.sm }}
+        />
         <View style={{ flex: 1, gap: 8 }}>
           <SkeletonBox width="70%" height={16} />
           <SkeletonBox width="90%" height={12} />
         </View>
-      </List.Item>
+      </View>
     </Animated.View>
   );
 }

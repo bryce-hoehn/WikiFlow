@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Button, Chip, IconButton, Modal, Text, useTheme } from 'react-native-paper';
+import { LAYOUT } from '../../constants/layout';
 import { SPACING } from '../../constants/spacing';
 import { Bookmark } from '../../types/bookmarks';
 import BookmarkTagEditor from './BookmarkTagEditor';
 
-interface BookmarkEditModalProps {
+interface BookmarkEditDialogProps {
   visible: boolean;
   bookmark: Bookmark | null;
   allBookmarks?: Bookmark[];
@@ -13,16 +14,17 @@ interface BookmarkEditModalProps {
   onSave: (tags: string[]) => Promise<void>;
 }
 
-export default function BookmarkEditModal({
+export default function BookmarkEditDialog({
   visible,
   bookmark,
   allBookmarks = [],
   onDismiss,
   onSave,
-}: BookmarkEditModalProps) {
+}: BookmarkEditDialogProps) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
-  const styles = createStyles(theme, width);
+  const isLargeScreen = width >= LAYOUT.DESKTOP_BREAKPOINT;
+  const styles = createStyles(theme, width, isLargeScreen);
   const [tags, setTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -217,20 +219,20 @@ export default function BookmarkEditModal({
   );
 }
 
-const createStyles = (theme: any, width: number) => StyleSheet.create({
+const createStyles = (theme: any, width: number, isLargeScreen: boolean) => StyleSheet.create({
   modal: {
-    padding: 24,
-    margin: 20,
-    borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+    padding: SPACING.lg, // M3: 24dp padding for dialogs
+    margin: SPACING.base + SPACING.xs, // M3: 20dp margin
+    borderRadius: isLargeScreen ? 28 : SPACING.base, // M3: 28dp for large screens, 16dp for mobile
     maxHeight: '80%',
     width: Math.min(width - 40, 500), // Constrain to container width with 20px margin on each side
     alignSelf: 'center',
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 24,
+    justifyContent: 'flex-end', // M3: Affirmative action (Save) on right, dismissive (Cancel) on left
+    gap: SPACING.sm, // M3: 8dp gap between buttons
+    marginTop: SPACING.lg, // M3: 24dp spacing above buttons
   },
   existingTagsContainer: {
     marginTop: 16,

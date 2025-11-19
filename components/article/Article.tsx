@@ -1,4 +1,3 @@
-import { LAYOUT } from '@/constants/layout';
 import { useArticleHtml, useReadingProgress } from '@/hooks';
 // import { activateKeepAwake, deactivateKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
@@ -26,7 +25,7 @@ const ArticleSectionedRenderer = React.lazy(() => import('./ArticleSectionedRend
 
 interface ArticleProps {
   title?: string;
-  articleTitle?: string; // Article title for NSFW detection (can be different from URL title)
+  articleTitle?: string; // Article title (can be different from URL title)
   onHeaderStateChange?: (collapsed: boolean, progress: number) => void;
   onImagePress?: (image: { uri: string; alt?: string }) => void;
   scrollY?: Animated.Value; // Optional scrollY from parent for CollapsibleHeader
@@ -47,7 +46,7 @@ export default function Article({
   const { fontSize: globalFontSize } = useFontSize();
   const { lineHeight: globalLineHeight } = useLineHeight();
   const { paragraphSpacing: globalParagraphSpacing } = useParagraphSpacing();
-  const { readingWidth } = useReadingWidth();
+  const { readingPadding } = useReadingWidth();
   const { fontFamily: globalFontFamily } = useFontFamily();
 
   // Lazy load fonts only when a custom font is selected
@@ -100,9 +99,6 @@ export default function Article({
   const lineHeight = globalLineHeight;
   const paragraphSpacing = globalParagraphSpacing;
   const fontFamily = globalFontFamily;
-
-  // Calculate optimal reading width for article content (use user preference or default)
-  const maxArticleWidth = Math.min(width - 32, readingWidth || LAYOUT.ARTICLE_MAX_WIDTH);
 
   // Pre-process HTML to remove <style> tags
   const cleanedArticleHtml = useMemo(() => {
@@ -202,15 +198,23 @@ export default function Article({
       }
 
       // Save progress (debounced to avoid too many writes)
+      // Defer to avoid blocking scroll performance
       if (articleTitleForProgress && hasRestoredScroll) {
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current);
         }
-        scrollTimeoutRef.current = setTimeout(() => {
-          // Save progress along with currently expanded sections
-          // Use ref to avoid dependency on expandedSections which changes frequently
+        // Use requestIdleCallback on web for better performance, setTimeout as fallback
+        const saveProgressDeferred = () => {
           saveProgress(articleTitleForProgress, progress, expandedSectionsRef.current);
-        }, 1000); // Save after 1 second of no scrolling
+        };
+        
+        if (typeof requestIdleCallback !== 'undefined') {
+          scrollTimeoutRef.current = setTimeout(() => {
+            requestIdleCallback(saveProgressDeferred, { timeout: 2000 });
+          }, 1000) as any;
+        } else {
+          scrollTimeoutRef.current = setTimeout(saveProgressDeferred, 1000);
+        }
       }
 
       // Notify parent of header state changes (only when values change)
@@ -229,22 +233,30 @@ export default function Article({
       if (hasRestoredScroll || !scrollViewRef.current || contentHeight <= 0) return;
 
       if (progressData && progressData.progress > 0) {
-        // Wait a bit longer to ensure sections are expanded and content is rendered
+        // Wait for sections to expand and content to render
         const targetY = (progressData.progress / 100) * contentHeight;
-        // Use a longer delay to ensure expanded sections are fully rendered
-        const timeoutId = setTimeout(() => {
+        // Use requestAnimationFrame for smoother restoration, then small delay for sections
+        const restoreScroll = () => {
           scrollViewRef.current?.scrollTo({
             y: targetY,
             animated: true,
           });
           setHasRestoredScroll(true);
-        }, 500); // Increased delay to allow sections to expand
+        };
+
+        // Use requestAnimationFrame to ensure layout is complete, then small delay
+        if (typeof requestAnimationFrame !== 'undefined') {
+          requestAnimationFrame(() => {
+            setTimeout(restoreScroll, 100); // Reduced delay - sections should be ready
+          });
+        } else {
+          setTimeout(restoreScroll, 200); // Fallback with slightly longer delay
+        }
 
         // Store timeout ID for cleanup
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current);
         }
-        scrollTimeoutRef.current = timeoutId;
       } else {
         setHasRestoredScroll(true);
       }
@@ -327,10 +339,8 @@ export default function Article({
         contentContainerStyle={{
           flexGrow: 1,
           paddingBottom: 80,
-          maxWidth: maxArticleWidth,
-          alignSelf: 'center',
           width: '100%',
-          paddingHorizontal: 8,
+          paddingHorizontal: readingPadding,
         }}
         onContentSizeChange={handleContentSizeChange}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
@@ -357,7 +367,7 @@ export default function Article({
             initialExpandedSections={initialExpandedSections}
             onExpandedSectionsChange={handleExpandedSectionsChange}
             onImagePress={onImagePress}
-            scrollViewRef={scrollViewRef}
+            readingPadding={readingPadding}
           />
         </Suspense>
         {/* Reading Progress Indicator */}
@@ -396,6 +406,7 @@ export default function Article({
         onSectionPress={handleSectionPress}
         currentFontSize={fontSize}
         visible={true}
+        fabVisible={fabVisible}
       />
     </View>
   );

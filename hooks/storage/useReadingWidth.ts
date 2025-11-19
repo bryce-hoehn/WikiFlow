@@ -1,63 +1,63 @@
 import { useCallback, useMemo } from 'react';
 import useAsyncStorage from './useAsyncStorage';
 
-const READING_WIDTH_KEY = 'articleReadingWidth';
-const DEFAULT_WIDTH = 800;
-const MIN_WIDTH = 400;
-const MAX_WIDTH = 1200;
-const STEP = 50;
+const READING_PADDING_KEY = 'articleReadingPadding';
+const DEFAULT_PADDING = 16;
+const MIN_PADDING = 0;
+const MAX_PADDING = 200;
+const STEP = 8;
 
 export default function useReadingWidth() {
   const {
-    value: readingWidth,
+    value: readingPadding,
     isLoading,
     updateValue,
-  } = useAsyncStorage<number>(READING_WIDTH_KEY, {
-    defaultValue: DEFAULT_WIDTH,
-    validator: (val) => !isNaN(val) && val >= MIN_WIDTH && val <= MAX_WIDTH,
+  } = useAsyncStorage<number>(READING_PADDING_KEY, {
+    defaultValue: DEFAULT_PADDING,
+    validator: (val) => !isNaN(val) && val >= MIN_PADDING && val <= MAX_PADDING,
     serializer: (val) => String(val),
     deserializer: (val) => parseInt(val, 10),
   });
 
-  const updateReadingWidth = useCallback(
-    async (newWidth: number) => {
-      const clampedWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
-      await updateValue(clampedWidth);
+  const updateReadingPadding = useCallback(
+    async (newPadding: number) => {
+      const clampedPadding = Math.max(MIN_PADDING, Math.min(MAX_PADDING, newPadding));
+      await updateValue(clampedPadding);
     },
     [updateValue]
   );
 
-  const increaseReadingWidth = useCallback(
-    () => updateReadingWidth(readingWidth + STEP),
-    [readingWidth, updateReadingWidth]
+  const increaseReadingPadding = useCallback(
+    () => updateReadingPadding(readingPadding + STEP),
+    [readingPadding, updateReadingPadding]
   );
-  const decreaseReadingWidth = useCallback(
-    () => updateReadingWidth(readingWidth - STEP),
-    [readingWidth, updateReadingWidth]
+  const decreaseReadingPadding = useCallback(
+    () => updateReadingPadding(readingPadding - STEP),
+    [readingPadding, updateReadingPadding]
   );
-  const resetReadingWidth = useCallback(
-    () => updateReadingWidth(DEFAULT_WIDTH),
-    [updateReadingWidth]
+  const resetReadingPadding = useCallback(
+    () => updateReadingPadding(DEFAULT_PADDING),
+    [updateReadingPadding]
   );
 
   return useMemo(
     () => ({
-      readingWidth,
+      readingPadding,
       isLoading,
-      updateReadingWidth,
-      increaseReadingWidth,
-      decreaseReadingWidth,
-      resetReadingWidth,
-      canIncrease: readingWidth < MAX_WIDTH,
-      canDecrease: readingWidth > MIN_WIDTH,
+      updateReadingPadding,
+      increaseReadingPadding,
+      decreaseReadingPadding,
+      resetReadingPadding,
+      canIncrease: readingPadding < MAX_PADDING,
+      canDecrease: readingPadding > MIN_PADDING,
     }),
     [
-      readingWidth,
+      readingPadding,
       isLoading,
-      updateReadingWidth,
-      increaseReadingWidth,
-      decreaseReadingWidth,
-      resetReadingWidth,
+      updateReadingPadding,
+      increaseReadingPadding,
+      decreaseReadingPadding,
+      resetReadingPadding,
     ]
   );
 }

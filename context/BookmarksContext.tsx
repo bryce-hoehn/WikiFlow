@@ -7,7 +7,7 @@ import { Bookmark, BookmarksContextType, OfflineArticle } from '../types/bookmar
 import * as BookmarkStorage from '../utils/bookmarkStorage';
 
 // Create context for bookmarks
-const BookmarksContext = createContext<BookmarksContextType | undefined>(undefined);
+export const BookmarksContext = createContext<BookmarksContextType | undefined>(undefined);
 
 /**
  * Provider component for bookmarks context

@@ -39,7 +39,7 @@ export default function HotFeed({ scrollY }: HotFeedProps) {
             },
             {
               label: 'Try Random Article',
-              action: () => router.push('/(tabs)'),
+              action: () => router.push('/(tabs)?tab=random'),
               icon: 'shuffle',
             },
           ]}

@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Snackbar } from 'react-native-paper';
+import { useWindowDimensions } from 'react-native';
+import { LAYOUT } from '@/constants/layout';
 
 interface SnackbarContextType {
   showSnackbar: (message: string, options?: SnackbarOptions) => void;
@@ -16,38 +18,49 @@ interface SnackbarOptions {
   };
 }
 
-const SnackbarContext = createContext<SnackbarContextType | undefined>(undefined);
+export const SnackbarContext = createContext<SnackbarContextType | undefined>(undefined);
 
 export function SnackbarProvider({ children }: { children: React.ReactNode }) {
+  const { width: windowWidth } = useWindowDimensions();
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
   const [action, setAction] = useState<{ label: string; onPress: () => void } | undefined>();
-  const [duration, setDuration] = useState(3000);
+  const [duration, setDuration] = useState(4000); // M3: Minimum 4 seconds
 
   const showSnackbar = useCallback((msg: string, options?: SnackbarOptions) => {
     setMessage(msg);
-    setAction(options?.action);
-    setDuration(options?.duration || 3000);
+    // Transform action label to all-caps per M3 specs
+    setAction(
+      options?.action
+        ? {
+            label: options.action.label.toUpperCase(), // M3: Action button text should be all-caps
+            onPress: options.action.onPress,
+          }
+        : undefined
+    );
+    // M3: Duration should be 4-10 seconds (default 4 seconds)
+    const requestedDuration = options?.duration || 4000;
+    setDuration(Math.max(4000, Math.min(10000, requestedDuration))); // Clamp between 4-10 seconds
     setVisible(true);
   }, []);
 
   const showSuccess = useCallback(
     (msg: string) => {
-      showSnackbar(msg, { duration: 3000 });
+      showSnackbar(msg, { duration: 4000 }); // M3: Minimum 4 seconds
     },
     [showSnackbar]
   );
 
   const showError = useCallback(
     (msg: string) => {
-      showSnackbar(msg, { duration: 4000 });
+      showSnackbar(msg, { duration: 5000 }); // Errors can be slightly longer (5 seconds)
     },
     [showSnackbar]
   );
 
   const showInfo = useCallback(
     (msg: string) => {
-      showSnackbar(msg, { duration: 3000 });
+      showSnackbar(msg, { duration: 4000 }); // M3: Minimum 4 seconds
     },
     [showSnackbar]
   );
@@ -68,10 +81,29 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
     [showSnackbar, showSuccess, showError, showInfo]
   );
 
+  // M3: Width constraints for tablet/desktop (min 288dp, max 568dp)
+  const isLargeScreen = windowWidth >= LAYOUT.DESKTOP_BREAKPOINT;
+  const snackbarStyle = isLargeScreen
+    ? {
+        minWidth: 288, // M3: Minimum 288dp for tablet/desktop
+        maxWidth: 568, // M3: Maximum 568dp for tablet/desktop
+        alignSelf: 'center' as const,
+      }
+    : undefined;
+
   return (
     <SnackbarContext.Provider value={value}>
       {children}
-      <Snackbar visible={visible} onDismiss={onDismiss} duration={duration} action={action}>
+      <Snackbar
+        visible={visible}
+        onDismiss={onDismiss}
+        duration={duration}
+        action={action}
+        style={snackbarStyle}
+        // M3: Typography - message uses bodyMedium (14sp) by default in RNP
+        // M3: Action button uses Medium 14sp, all-caps (handled in showSnackbar)
+        // M3: Elevation level 3 (same as FAB) - RNP handles this by default
+      >
         {message}
       </Snackbar>
     </SnackbarContext.Provider>

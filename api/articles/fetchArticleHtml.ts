@@ -53,13 +53,32 @@ export const fetchArticleHtml = async (title: string): Promise<string | null> =>
   try {
     const cleanTitle = normalizeWikipediaTitle(title);
 
-    // Resolve redirects first to get the canonical title
-    const resolvedTitle = await resolveRedirect(cleanTitle);
-    const normalizedResolvedTitle = normalizeWikipediaTitle(resolvedTitle);
+    // Resolve redirects and fetch HTML in parallel for better performance
+    // Start both requests simultaneously
+    const [resolvedTitle, directHtmlResponse] = await Promise.allSettled([
+      resolveRedirect(cleanTitle),
+      axiosInstance.get<string>(`/page/${encodeURIComponent(cleanTitle)}/html`, {
+        baseURL: WIKIPEDIA_API_CONFIG.CORE_API_BASE_URL,
+        headers: {
+          Accept: 'text/html',
+        },
+      }),
+    ]);
 
-    // Use Core API for HTML content with the resolved (canonical) title
+    // If direct fetch succeeded, use it (avoids redirect resolution delay)
+    if (directHtmlResponse.status === 'fulfilled' && directHtmlResponse.value.status === 200) {
+      return directHtmlResponse.value.data;
+    }
+
+    // Otherwise, use resolved title (handles redirects)
+    const finalTitle =
+      resolvedTitle.status === 'fulfilled'
+        ? normalizeWikipediaTitle(resolvedTitle.value)
+        : cleanTitle;
+
+    // Fetch with resolved title
     const response = await axiosInstance.get<string>(
-      `/page/${encodeURIComponent(normalizedResolvedTitle)}/html`,
+      `/page/${encodeURIComponent(finalTitle)}/html`,
       {
         baseURL: WIKIPEDIA_API_CONFIG.CORE_API_BASE_URL,
         headers: {

@@ -99,7 +99,7 @@ export default function StandardEmptyState({
               icon={suggestion.icon}
               style={{
                 marginBottom: SPACING.sm,
-                borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+                // M3: Buttons use 20dp corner radius (RNP handles this by default)
               }}
               contentStyle={{ paddingVertical: SPACING.sm }}
               accessibilityLabel={suggestion.label}
@@ -117,8 +117,8 @@ export default function StandardEmptyState({
           onPress={onAction}
           style={{
             marginTop: SPACING.base,
-            borderRadius: theme.roundness * 0.75, // 12dp equivalent
             paddingHorizontal: SPACING.lg,
+            // M3: Buttons use 20dp corner radius (RNP handles this by default)
           }}
           contentStyle={{ paddingVertical: SPACING.sm }}
           accessibilityLabel={actionLabel}

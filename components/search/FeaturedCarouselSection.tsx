@@ -1,8 +1,9 @@
 import { useFeaturedContent } from '@/context/FeaturedContentContext';
-import React from 'react';
+import React, { useState } from 'react';
 import { RecommendationItem } from '../../types/components';
 import { CardType } from '../../utils/cardUtils';
-import SimpleFeaturedCarousel from '../featured/SimpleFeaturedCarousel';
+import FeaturedCarousel from '../featured/FeaturedCarousel';
+import CarouselItemsBottomSheet from './CarouselItemsBottomSheet';
 import ContentSection from './ContentSection';
 import { FeaturedCarouselSkeleton } from './SkeletonComponents';
 
@@ -15,6 +16,7 @@ interface FeaturedCarouselSectionProps {
 
 /**
  * Reusable carousel section component for SearchScreen
+ * Per MD3 accessibility: includes arrow icon button and modal to view all items
  */
 export default function FeaturedCarouselSection({
   title,
@@ -23,10 +25,35 @@ export default function FeaturedCarouselSection({
   year,
 }: FeaturedCarouselSectionProps) {
   const { isLoading } = useFeaturedContent();
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const handleHeaderPress = () => {
+    // Always try to open modal - it will handle empty items gracefully
+    setModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+  };
 
   return (
-    <ContentSection title={title} isLoading={isLoading} skeleton={<FeaturedCarouselSkeleton />}>
-      {items ? <SimpleFeaturedCarousel items={items} cardType={cardType} /> : null}
-    </ContentSection>
+    <>
+      <ContentSection
+        title={title}
+        isLoading={isLoading}
+        skeleton={<FeaturedCarouselSkeleton />}
+        hasCarousel={true}
+        onHeaderPress={handleHeaderPress}
+      >
+        {items && items.length > 0 ? <FeaturedCarousel items={items} cardType={cardType} /> : null}
+      </ContentSection>
+      <CarouselItemsBottomSheet
+        visible={modalVisible}
+        onDismiss={handleCloseModal}
+        title={title}
+        items={items?.filter((item) => item != null) || []}
+        cardType={cardType}
+      />
+    </>
   );
 }

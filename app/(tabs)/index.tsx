@@ -6,10 +6,13 @@ import ForYouFeed from '@/components/home/ForYouFeed';
 import HotFeed from '@/components/home/HotFeed';
 import RandomFeed from '@/components/home/RandomFeed';
 import { LAYOUT } from '@/constants/layout';
+import { SPACING } from '@/constants/spacing';
+import { TYPOGRAPHY } from '@/constants/typography';
 import { useScrollToTop } from '@/context/ScrollToTopContext';
 import { useReducedMotion } from '@/hooks';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Platform, View, useWindowDimensions } from 'react-native';
 import { Divider, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +24,7 @@ export default function HomeScreen() {
   const { scrollToTop, registerScrollRef } = useScrollToTop();
   const layout = useWindowDimensions();
   const wasFocusedRef = useRef(false);
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   // Use full window width for TabView initialLayout (required for proper rendering)
   const windowWidth = layout.width;
   // Constrain tab widths to the centered content container so tabs don't run under the sidebar.
@@ -30,12 +34,31 @@ export default function HomeScreen() {
   // Shared scroll value for collapsible header
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'for-you', title: 'For You' },
     { key: 'hot', title: 'Popular' },
     { key: 'random', title: 'Random' },
   ]);
+
+  // Determine initial index from query parameter or default to 0
+  const getInitialIndex = () => {
+    if (tab) {
+      const tabIndex = routes.findIndex((route) => route.key === tab);
+      return tabIndex >= 0 ? tabIndex : 0;
+    }
+    return 0;
+  };
+
+  const [index, setIndex] = useState(() => getInitialIndex());
+
+  // Update index when tab query parameter changes
+  useEffect(() => {
+    const newIndex = getInitialIndex();
+    setIndex((currentIndex) => {
+      // Only update if the new index is different
+      return newIndex !== currentIndex ? newIndex : currentIndex;
+    });
+  }, [tab, routes]);
 
   // Register a scroll ref for the home route that scrolls the currently active feed
   // Use ref to access current index without causing re-renders
@@ -154,13 +177,19 @@ export default function HomeScreen() {
               alignSelf: 'center',
             }),
           }}
+          // MD3 Accessibility: Tab list role for screen readers
+          // Reference: https://m3.material.io/components/tabs/accessibility
+          accessibilityRole="tablist"
+          accessibilityLabel="Feed tabs"
         >
           {routes.map((route: Route, i: number) => {
             const focused = i === index;
-            // Bluesky style: active tab has white text, inactive has lighter grey
+            // MD3: Active tab uses onSurface, inactive uses onSurfaceVariant
+            // Reference: https://m3.material.io/components/tabs/specs
             const color = focused ? theme.colors.onSurface : theme.colors.onSurfaceVariant;
-            const fontWeight = focused ? '700' : '400';
-            const fontSize = focused ? 17 : 15;
+            // MD3: Active tab uses Medium weight (500), inactive uses Regular (400)
+            // Reference: https://m3.material.io/components/tabs/specs
+            const fontWeight = focused ? '500' : '400';
 
             return (
               <TouchableRipple
@@ -170,19 +199,30 @@ export default function HomeScreen() {
                   flex: 1,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  paddingVertical: 16,
-                  paddingBottom: 17,
-                  paddingHorizontal: 16,
-                  minWidth: 120,
+                  // MD3: Tab height must be exactly 48dp for text-only tabs
+                  // Reference: https://m3.material.io/components/tabs/specs
+                  height: SPACING.xxl, // 48dp
+                  minHeight: SPACING.xxl, // 48dp - ensures minimum touch target
+                  paddingHorizontal: SPACING.base, // 16dp horizontal padding
+                  minWidth: 120, // Ensure minimum width for touch target
                 }}
+                // MD3 Accessibility: Proper tab role and state
+                // Reference: https://m3.material.io/components/tabs/accessibility
+                accessibilityRole="tab"
+                accessibilityLabel={route.title || `Tab ${i + 1}`}
+                accessibilityState={{ selected: focused }}
+                accessibilityHint={focused ? `${route.title} tab, currently selected` : `Switch to ${route.title} tab`}
+                testID={`tab-${route.key}`}
               >
-                <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
                   <Text
-                    variant={focused ? 'titleMedium' : 'bodyMedium'}
+                    // MD3: Use titleSmall (14sp) for tab labels
+                    // Reference: https://m3.material.io/components/tabs/specs
+                    variant="titleSmall"
                     style={{
-                      // fontSize and fontWeight removed - using variant defaults
-                      lineHeight: 20,
-                      // Remove letterSpacing override - use MD3 typography defaults
+                      fontSize: TYPOGRAPHY.tabLabel,
+                      fontWeight: fontWeight,
+                      lineHeight: 20, // Standard line height for 14sp
                       color: color,
                       textAlign: 'center',
                     }}
@@ -193,12 +233,14 @@ export default function HomeScreen() {
                     <View
                       style={{
                         position: 'absolute',
-                        bottom: -17,
+                        // MD3: Indicator positioned at bottom of 48dp tab, height 2dp
+                        // Reference: https://m3.material.io/components/tabs/specs
+                        bottom: 0,
                         left: '20%',
                         right: '20%',
-                        height: 2,
+                        height: 2, // 2dp per MD3 specification
                         backgroundColor: theme.colors.primary,
-                        borderRadius: theme.roundness * 1, // 4dp equivalent for small indicator (4dp * 1)
+                        borderRadius: 1, // 1dp radius for 2dp height indicator
                       }}
                     />
                   )}

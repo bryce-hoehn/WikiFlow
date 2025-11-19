@@ -33,11 +33,11 @@ export default function HistoryCard({ item }: HistoryCardProps) {
 
   return (
     <Card
-      elevation={2}
+      elevation={1} // M3: Default elevation 1dp
       style={{
         width: '100%',
         marginBottom: SPACING.lg, // Increased from SPACING.md (12dp) to SPACING.lg (24dp)
-        borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+        borderRadius: theme.roundness * 3, // M3: 12dp corner radius (4dp * 3)
         // No border - MD3 recommends using elevation for depth instead of borders
         backgroundColor: theme.colors.elevation.level2,
         overflow: 'hidden',
@@ -46,7 +46,7 @@ export default function HistoryCard({ item }: HistoryCardProps) {
       accessibilityLabel={`Open article: ${item.title}`}
       accessibilityHint={`Opens the ${item.title} article`}
     >
-      <View style={{ flexDirection: 'row', padding: SPACING.md, alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', padding: SPACING.base, alignItems: 'center' }}> {/* M3: 16dp padding for card content */}
         {/* Content */}
         <View style={{ flex: 1 }}>
           <Text

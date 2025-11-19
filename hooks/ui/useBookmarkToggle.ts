@@ -1,15 +1,27 @@
-import { useCallback } from 'react';
-import { useBookmarks } from '../../context/BookmarksContext';
-import { useSnackbar } from '../../context/SnackbarContext';
+import { useCallback, useContext } from 'react';
+import { BookmarksContext } from '../../context/BookmarksContext';
+import { SnackbarContext } from '../../context/SnackbarContext';
 import { RecommendationItem } from '../../types/components';
 
 /**
  * Shared hook for bookmark toggle functionality
  * Eliminates duplicate bookmark toggle logic across components
+ * Gracefully handles missing context (e.g., in Portal outside provider tree)
  */
 export default function useBookmarkToggle() {
-  const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
-  const { showSuccess } = useSnackbar();
+  const bookmarksContext = useContext(BookmarksContext);
+  const snackbarContext = useContext(SnackbarContext);
+  
+  // If context is not available, return no-op functions
+  if (!bookmarksContext) {
+    return {
+      handleBookmarkToggle: () => Promise.resolve(),
+      isBookmarked: () => false,
+    };
+  }
+  
+  const { addBookmark, removeBookmark, isBookmarked } = bookmarksContext;
+  const { showSuccess } = snackbarContext || { showSuccess: () => {} };
 
   const handleBookmarkToggle = useCallback(
     async (item: RecommendationItem) => {

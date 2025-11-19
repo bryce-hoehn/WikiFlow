@@ -4,7 +4,7 @@ import { SPACING } from '@/constants/spacing';
 import { useReducedMotion } from '@/hooks';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, useWindowDimensions, View } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { Surface, useTheme } from 'react-native-paper';
 
 /**
  * Skeleton loader component that matches Subcategory page layout
@@ -102,27 +102,38 @@ export default function SubcategorySkeleton() {
     );
   };
 
-  // Render skeleton for subcategory item (horizontal list item)
+  // Render skeleton for subcategory item - matches List.Item structure
   const SubcategorySkeletonItem = () => (
-    <View style={{ margin: 4, width: 200 }}>
+    <Surface
+      elevation={1}
+      style={{
+        borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
+        margin: SPACING.xs,
+        backgroundColor: theme.colors.surface,
+      }}
+    >
       <View
         style={{
-          borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
-          backgroundColor: theme.colors.elevation.level2,
-          padding: 12,
           flexDirection: 'row',
           alignItems: 'center',
+          paddingVertical: SPACING.sm,
+          paddingHorizontal: SPACING.base, // List.Item default horizontal padding
         }}
       >
-        <SkeletonBox width={24} height={24} borderRadius={theme.roundness * 0.75} style={{ marginRight: SPACING.md }} />
-        <SkeletonBox width={140} height={16} />
+        <SkeletonBox
+          width={24}
+          height={24}
+          borderRadius={theme.roundness * 0.75}
+          style={{ marginRight: SPACING.md }}
+        />
+        <SkeletonBox width="70%" height={16} />
       </View>
-    </View>
+    </Surface>
   );
 
   // Render skeleton for article card - match exact structure of actual cards
   const ArticleCardSkeleton = () => (
-    <View style={{ flex: 1, margin: 4 }}>
+    <View style={{ flex: 1, margin: SPACING.xs }}>
       <View
         style={{
           borderRadius: theme.roundness * 3, // 12dp equivalent (4dp * 3)
@@ -131,9 +142,9 @@ export default function SubcategorySkeleton() {
         }}
       >
         <SkeletonBox width="100%" height={120} />
-        <View style={{ padding: 12 }}>
-          <SkeletonBox width="85%" height={16} style={{ marginBottom: 8 }} />
-          <SkeletonBox width="100%" height={12} style={{ marginBottom: 4 }} />
+        <View style={{ padding: SPACING.md }}>
+          <SkeletonBox width="85%" height={16} style={{ marginBottom: SPACING.sm }} />
+          <SkeletonBox width="100%" height={12} style={{ marginBottom: SPACING.xs }} />
           <SkeletonBox width="75%" height={12} />
         </View>
       </View>
@@ -142,14 +153,14 @@ export default function SubcategorySkeleton() {
 
   return (
     <Animated.View style={{ opacity: fadeAnim, flex: 1, backgroundColor: theme.colors.background }}>
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: SPACING.base }}>
         {/* Subcategories Section Skeleton */}
-        <View style={{ marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-            <SkeletonBox width={120} height={20} style={{ marginRight: 8 }} />
+        <View style={{ marginBottom: SPACING.base }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
+            <SkeletonBox width={120} height={20} style={{ marginRight: SPACING.sm }} />
             <SkeletonBox width={24} height={24} borderRadius={theme.roundness * 0.75} />
           </View>
-          <View style={{ flexDirection: 'row' }}>
+          <View>
             {[0, 1, 2, 3].map((index) => (
               <SubcategorySkeletonItem key={index} />
             ))}
@@ -158,10 +169,10 @@ export default function SubcategorySkeleton() {
 
         {/* Articles Section Skeleton */}
         <View>
-          <SkeletonBox width={80} height={20} style={{ marginBottom: 12 }} />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
+          <SkeletonBox width={80} height={20} style={{ marginBottom: SPACING.md }} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -SPACING.xs }}>
             {Array.from({ length: numColumns * 2 }).map((_, index) => (
-              <View key={index} style={{ width: `${100 / numColumns}%`, paddingHorizontal: 4 }}>
+              <View key={index} style={{ width: `${100 / numColumns}%`, paddingHorizontal: SPACING.xs }}>
                 <ArticleCardSkeleton />
               </View>
             ))}

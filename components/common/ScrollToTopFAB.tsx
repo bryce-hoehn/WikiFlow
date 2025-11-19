@@ -3,6 +3,7 @@ import { Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import { AnimatedFAB, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LAYOUT } from '../../constants/layout';
+import { SPACING } from '../../constants/spacing';
 import { useReducedMotion } from '../../hooks';
 
 interface ScrollToTopFABProps {
@@ -91,25 +92,15 @@ export default function ScrollToTopFAB({ scrollRef, visible = true, hasBottomTab
     }
   };
 
-  // MD3 FAB positioning:
-  // - 16dp from bottom navigation bar when present (mobile)
-  // - 24dp from bottom edge on desktop/tablets (no bottom nav)
-  // - 16dp from right edge on mobile, 24dp on desktop
-  // - Should account for safe area insets (home indicator, etc.)
   const bottomSpacing = Platform.select({
-    web: isLargeScreen ? 24 : 16, // 24dp on desktop, 16dp on mobile web
-    default: 16, // 16dp on native mobile
+    web: isLargeScreen ? 24 : 16,
+    default: 16,
   });
 
-  // Calculate bottom position:
-  // - If tab bar is present: safe area + tab bar height + spacing above tab bar
-  // - If no tab bar: safe area + bottom spacing from edge
-  const bottomTabBarHeight = hasBottomTabBar && !isLargeScreen ? 56 : 0; // Tab bar height when visible
-  const spacingFromTabBar = hasBottomTabBar ? 16 : 0; // MD3: 16dp spacing above bottom navigation (when tab bar is present)
-  
+  const spacingFromTabBar = hasBottomTabBar && !isLargeScreen ? 16 : 0;
   const bottomPosition = hasBottomTabBar && !isLargeScreen
-    ? insets.bottom + bottomTabBarHeight + spacingFromTabBar // Mobile with tab bar: safe area + tab bar + spacing above tab bar
-    : insets.bottom + bottomSpacing; // Desktop or no tab bar: safe area + spacing from edge
+    ? spacingFromTabBar
+    : insets.bottom + bottomSpacing;
 
   return (
     <AnimatedFAB
@@ -123,14 +114,15 @@ export default function ScrollToTopFAB({ scrollRef, visible = true, hasBottomTab
       style={[
         styles.fabStyle,
         {
-          backgroundColor: theme.colors.primary,
+          backgroundColor: theme.colors.secondaryContainer,
+          borderRadius: SPACING.base, // M3: FAB corner radius is 16dp
           bottom: bottomPosition,
           right: bottomSpacing,
           zIndex: 1000,
-          elevation: 6,
+          elevation: 3, // M3: FAB elevation is 3dp (increases to 4dp when pressed)
         },
       ]}
-      color={theme.colors.onPrimary}
+      color={theme.colors.onSecondaryContainer}
       accessibilityLabel="Scroll to top"
       accessibilityHint="Scrolls to the top of the page"
     />
@@ -139,10 +131,6 @@ export default function ScrollToTopFAB({ scrollRef, visible = true, hasBottomTab
 
 const styles = StyleSheet.create({
   fabStyle: {
-    // Position is calculated dynamically based on:
-    // - Safe area insets (home indicator, etc.)
-    // - Bottom tab bar height (when visible)
-    // - MD3 spacing guidelines
     position: 'absolute',
   },
 });

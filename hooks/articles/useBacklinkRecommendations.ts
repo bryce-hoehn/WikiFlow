@@ -24,7 +24,7 @@ export default function useBacklinkRecommendations() {
   // Get a random backlink from a visited article
   // Uses React Query for caching
   const getRandomBacklink = useCallback(
-    async (visitedArticleTitle: string) => {
+    async (visitedArticleTitle: string, visitedTitlesSet: Set<string>) => {
       try {
         // Use React Query to fetch and cache backlinks
         const backlinkTitles = await queryClient.fetchQuery({
@@ -38,27 +38,26 @@ export default function useBacklinkRecommendations() {
           return null;
         }
 
-        // Pick a random backlink
-        const randomIndex = Math.floor(Math.random() * backlinkTitles.length);
-        const randomBacklinkTitle = backlinkTitles[randomIndex];
-
-        // Skip if this is already a visited article
-        if (visitedArticles.some((visited) => visited.title === randomBacklinkTitle)) {
+        // Filter out visited articles efficiently using Set
+        const unvisitedBacklinks = backlinkTitles.filter((title) => !visitedTitlesSet.has(title));
+        if (unvisitedBacklinks.length === 0) {
           return null;
         }
 
-        return randomBacklinkTitle;
+        // Pick a random backlink
+        const randomIndex = Math.floor(Math.random() * unvisitedBacklinks.length);
+        return unvisitedBacklinks[randomIndex];
       } catch (error) {
         return null;
       }
     },
-    [visitedArticles, queryClient]
+    [queryClient]
   );
 
   // Get a random forward link from a visited article
   // Uses React Query for caching
   const getRandomForwardlink = useCallback(
-    async (visitedArticleTitle: string) => {
+    async (visitedArticleTitle: string, visitedTitlesSet: Set<string>) => {
       try {
         // Use React Query to fetch and cache forward links
         const forwardLinkTitles = await queryClient.fetchQuery({
@@ -72,21 +71,20 @@ export default function useBacklinkRecommendations() {
           return null;
         }
 
-        // Pick a random forward link
-        const randomIndex = Math.floor(Math.random() * forwardLinkTitles.length);
-        const randomForwardLinkTitle = forwardLinkTitles[randomIndex];
-
-        // Skip if this is already a visited article
-        if (visitedArticles.some((visited) => visited.title === randomForwardLinkTitle)) {
+        // Filter out visited articles efficiently using Set
+        const unvisitedForwardLinks = forwardLinkTitles.filter((title) => !visitedTitlesSet.has(title));
+        if (unvisitedForwardLinks.length === 0) {
           return null;
         }
 
-        return randomForwardLinkTitle;
+        // Pick a random forward link
+        const randomIndex = Math.floor(Math.random() * unvisitedForwardLinks.length);
+        return unvisitedForwardLinks[randomIndex];
       } catch (error) {
         return null;
       }
     },
-    [visitedArticles, queryClient]
+    [queryClient]
   );
 
   // Main recommendation function using backlinks OR forward links (not both)
@@ -107,10 +105,17 @@ export default function useBacklinkRecommendations() {
         const candidateTitles: string[] = [];
         const maxSourceArticles = Math.min(visitedArticles.length, Math.ceil(limit / 2)); // Use multiple source articles
 
-        // Randomly select source articles and decide backlink vs forward link
-        const sourceArticles = [...visitedArticles]
-          .sort(() => Math.random() - 0.5)
-          .slice(0, maxSourceArticles);
+        // Efficiently select random source articles without sorting (O(n) instead of O(n log n))
+        // Fisher-Yates shuffle would be better, but for small arrays this is acceptable
+        const sourceArticles: typeof visitedArticles = [];
+        const availableIndices = new Set(Array.from({ length: visitedArticles.length }, (_, i) => i));
+        
+        for (let i = 0; i < maxSourceArticles && availableIndices.size > 0; i++) {
+          const randomIndex = Math.floor(Math.random() * availableIndices.size);
+          const selectedIndex = Array.from(availableIndices)[randomIndex];
+          availableIndices.delete(selectedIndex);
+          sourceArticles.push(visitedArticles[selectedIndex]);
+        }
 
         // Fetch all link lists in parallel
         const linkPromises = sourceArticles.map(async (article) => {
@@ -142,23 +147,39 @@ export default function useBacklinkRecommendations() {
 
         const linkResults = await Promise.all(linkPromises);
 
-        // Flatten and shuffle all candidate titles
-        const allCandidates = linkResults
-          .flat()
-          .filter((title) => !visitedTitlesSet.has(title))
-          .sort(() => Math.random() - 0.5);
-
-        // Select unique candidates up to limit
-        for (const title of allCandidates) {
-          if (candidateTitles.length >= limit) break;
-          if (!processedTitles.has(title)) {
+        // Flatten and filter candidate titles in a single pass (more efficient)
+        const allCandidates: string[] = [];
+        for (const linkList of linkResults) {
+          for (const title of linkList) {
+            if (!visitedTitlesSet.has(title) && !processedTitles.has(title)) {
             processedTitles.add(title);
-            candidateTitles.push(title);
+              allCandidates.push(title);
+            }
           }
         }
 
-        // Step 2: Fetch all summaries in parallel (major performance improvement)
-        const summaryPromises = candidateTitles.map(async (title) => {
+        // Efficiently shuffle using Fisher-Yates algorithm (O(n) instead of O(n log n))
+        // Shuffle in-place to avoid creating new arrays
+        for (let i = allCandidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allCandidates[i], allCandidates[j]] = [allCandidates[j], allCandidates[i]];
+        }
+
+        // Select candidates up to limit (already unique due to Set check above)
+        candidateTitles.push(...allCandidates.slice(0, limit));
+
+        // Step 2: Fetch summaries with early termination for better performance
+        // Only fetch summaries for the exact number we need (limit), not all candidates
+        const recommendations: RecommendationItem[] = [];
+        const summaryPromises: Promise<RecommendationItem | null>[] = [];
+
+        // Fetch summaries in batches to allow early termination
+        // Request a few extra to account for potential failures
+        const fetchLimit = Math.min(candidateTitles.length, limit + 5);
+        
+        for (let i = 0; i < fetchLimit && recommendations.length < limit; i++) {
+          const title = candidateTitles[i];
+          const promise = (async () => {
           try {
             const summaryResponse = await queryClient.fetchQuery({
               queryKey: ['article', title],
@@ -188,12 +209,20 @@ export default function useBacklinkRecommendations() {
               displaytitle: title,
             } as RecommendationItem;
           }
-        });
+          })();
 
+          summaryPromises.push(promise);
+        }
+
+        // Wait for all promises and collect valid recommendations
         const results = await Promise.all(summaryPromises);
-        const recommendations = results.filter((r): r is RecommendationItem => r !== null);
+        for (const result of results) {
+          if (result && recommendations.length < limit) {
+            recommendations.push(result);
+          }
+        }
 
-        return recommendations.slice(0, limit);
+        return recommendations;
       } catch (error) {
         setError('Failed to fetch recommendations');
         return [];

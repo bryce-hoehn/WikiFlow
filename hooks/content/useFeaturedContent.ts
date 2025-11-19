@@ -14,10 +14,6 @@ import { fetchFeaturedContent } from '../../api';
 // Simple in-memory cache (module-scoped)
 let lastFeaturedCache: { data: any; fetchedAt: number } | null = null;
 
-export function getLastFeaturedCache() {
-  return lastFeaturedCache;
-}
-
 export default function useFeaturedContent() {
   const queryKey = ['featured-content'] as const;
 

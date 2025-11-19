@@ -5,8 +5,10 @@ import { Platform, Pressable, View } from 'react-native';
 import { List, Text, useTheme } from 'react-native-paper';
 import { getHoverStyles } from '../../constants/motion';
 import { SPACING } from '../../constants/spacing';
+import { TYPOGRAPHY } from '../../constants/typography';
 import { useReducedMotion } from '../../hooks';
-import ArticleImageModal from '../article/ArticleImageModal';
+import { getRandomBlurhash } from '../../utils/blurhash';
+import ImageDialog from '../article/ImageDialog';
 
 interface TrendingListItemProps {
   item: {
@@ -64,14 +66,14 @@ export default function TrendingListItem({
         description={item.description}
         onPress={() => router.push(`/article/${encodeURIComponent(item.title)}`)}
         titleStyle={{
-          fontSize: 16,
+          fontSize: TYPOGRAPHY.titleMedium,
           fontWeight: '500',
           color: theme.colors.onSurface,
         }}
         descriptionStyle={{
-          fontSize: 12,
+          fontSize: TYPOGRAPHY.bodySmall,
           color: theme.colors.onSurfaceVariant,
-          marginTop: 2,
+          marginTop: SPACING.xs / 2,
         }}
         contentStyle={{ paddingVertical: 0, minHeight: 0 }}
         accessibilityLabel={`Open trending article: ${item.normalizedTitle}`}
@@ -100,7 +102,7 @@ export default function TrendingListItem({
               <Image
                 source={{ uri: item.thumbnail }}
                 style={{ width: '100%', height: '100%' }}
-                placeholder={{ blurhash: 'L5H2EC=PM+yV0gMqNGa#00bH?G-9' }}
+                placeholder={{ blurhash: getRandomBlurhash(item.thumbnail) }}
                 alt={`Thumbnail for ${item.normalizedTitle}`}
                 accessibilityLabel={`Thumbnail for ${item.normalizedTitle}`}
               />
@@ -122,7 +124,7 @@ export default function TrendingListItem({
             >
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: TYPOGRAPHY.bodyMedium,
                   fontWeight: 'bold',
                   color: theme.colors.onPrimary,
                 }}
@@ -151,7 +153,7 @@ export default function TrendingListItem({
         }}
       />
 
-      <ArticleImageModal
+      <ImageDialog
         visible={imageModalVisible}
         selectedImage={selectedImage}
         onClose={() => {

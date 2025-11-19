@@ -1,4 +1,5 @@
 // Native date formatting - no external dependency needed
+import { HEIGHTS } from '@/constants/spacing';
 import { MOTION } from '@/constants/motion';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -144,9 +145,10 @@ export default function SearchBar({
     }
   };
 
-  // MD3 styling
-  const elevation = headerStyle ? 0 : Platform.select({ android: 2, ios: 0, web: 1 });
-  const backgroundColor = headerStyle ? 'transparent' : theme.colors.elevation.level2;
+  // MD3 styling - per https://m3.material.io/components/search/specs
+  // Elevation: level1 for standard search bars (level2 was too high)
+  const elevation = headerStyle ? 0 : Platform.select({ android: 1, ios: 0, web: 1 });
+  const backgroundColor = headerStyle ? 'transparent' : theme.colors.elevation.level1;
   const shouldShowWebMenu = Platform.OS === 'web' && showWebMenu && !disableOverlay;
 
   // Web: Prepare suggestions and recent articles
@@ -192,7 +194,11 @@ export default function SearchBar({
           style={{
             elevation,
             backgroundColor,
-            borderRadius: headerStyle ? 0 : theme.roundness * 2,
+            // MD3: corner.medium (12dp) for search bars - per https://m3.material.io/components/search/specs
+            borderRadius: headerStyle ? 0 : theme.roundness * 3,
+            // MD3: Ensure 56dp height for search bars
+            minHeight: HEIGHTS.searchBar,
+            height: HEIGHTS.searchBar,
           }}
           inputStyle={{
             // fontSize removed - using variant default
@@ -202,8 +208,14 @@ export default function SearchBar({
             includeFontPadding: false,
           }}
           iconColor={theme.colors.onSurfaceVariant}
+          // MD3 Accessibility: Proper labels and hints - per https://m3.material.io/components/search/accessibility
           accessibilityLabel="Search Wikipedia"
           accessibilityRole="search"
+          accessibilityHint={
+            value && value.length > 0
+              ? `Searching for "${value}". Press enter to search or tap to view suggestions.`
+              : 'Enter search terms to find Wikipedia articles. Tap to view suggestions.'
+          }
           autoFocus={autoFocus}
           returnKeyType="search"
           {...(Platform.OS === 'web' && {

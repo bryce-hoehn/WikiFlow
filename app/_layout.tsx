@@ -42,7 +42,6 @@ function InnerLayout() {
 
   useEffect(() => {
     // Set root view background color before hiding splash screen
-    // This prevents white flash during async route loading
     const prepareApp = async () => {
       await setBackgroundColorAsync(theme.colors.background);
       await SplashScreen.hideAsync();
@@ -52,18 +51,9 @@ function InnerLayout() {
       // Fallback: hide splash screen even if background color fails
       SplashScreen.hideAsync();
     });
-
-    // NSFWJS model preloading disabled since NSFW filter is disabled by default
-    // If the filter is re-enabled in the future, uncomment this:
-    // if (Platform.OS === 'web') {
-    //   preloadNsfwjsModel().catch(() => {
-    //     // Silently fail - model will load on-demand if preload fails
-    //   });
-    // }
   }, [theme.colors.background]);
 
   // Update root view background color to match theme
-  // This helps prevent white flash during route transitions
   useEffect(() => {
     const bgColor = theme.colors.background;
     
@@ -75,11 +65,9 @@ function InnerLayout() {
     // Also update web DOM elements
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       const root = document.getElementById('root');
-      
       if (root) {
         root.style.backgroundColor = bgColor;
       }
-      
       document.body.style.backgroundColor = bgColor;
       document.documentElement.style.backgroundColor = bgColor;
     }

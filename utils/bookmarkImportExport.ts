@@ -22,7 +22,6 @@ function hasUri(file: File | { uri: string }): file is { uri: string } {
 const VISITED_ARTICLES_KEY = 'visited_articles';
 const READING_PROGRESS_KEY = 'reading_progress';
 const THEME_STORAGE_KEY = 'wikipediaexpo_theme_preference';
-const NSFW_FILTER_KEY = 'nsfw_filter_enabled';
 const FONT_SIZE_KEY = 'articleFontSize';
 
 export interface UserProfileExportData {
@@ -36,7 +35,6 @@ export interface UserProfileExportData {
   readingProgress: Record<string, ReadingProgress>;
   // Settings
   theme: ThemeType | null;
-  nsfwFilterEnabled: boolean | null;
   fontSize: number | null;
 }
 
@@ -99,22 +97,7 @@ export async function exportUserProfile(): Promise<boolean> {
 
     // Load settings
     const theme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-    const nsfwFilterJson = await AsyncStorage.getItem(NSFW_FILTER_KEY);
     const fontSizeJson = await AsyncStorage.getItem(FONT_SIZE_KEY);
-
-    let nsfwFilterEnabled: boolean | null = null;
-    if (nsfwFilterJson) {
-      try {
-        const parsed = JSON.parse(nsfwFilterJson);
-        if (typeof parsed === 'boolean') {
-          nsfwFilterEnabled = parsed;
-        }
-      } catch (parseError) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.error('Failed to parse NSFW filter setting for export:', parseError);
-        }
-      }
-    }
 
     const exportData: UserProfileExportData = {
       version: '1.0',
@@ -124,7 +107,6 @@ export async function exportUserProfile(): Promise<boolean> {
       visitedArticles,
       readingProgress,
       theme: theme as ThemeType | null,
-      nsfwFilterEnabled,
       fontSize: fontSizeJson ? parseInt(fontSizeJson, 10) : null,
     };
 
@@ -182,7 +164,6 @@ export async function importUserProfile(fileContent: string): Promise<{
   visitedArticles: VisitedArticle[];
   readingProgress: Record<string, ReadingProgress>;
   theme: ThemeType | null;
-  nsfwFilterEnabled: boolean | null;
   fontSize: number | null;
 }> {
   try {
@@ -279,9 +260,6 @@ export async function importUserProfile(fileContent: string): Promise<{
       await AsyncStorage.setItem(THEME_STORAGE_KEY, data.theme);
     }
 
-    if (data.nsfwFilterEnabled !== null && data.nsfwFilterEnabled !== undefined) {
-      await AsyncStorage.setItem(NSFW_FILTER_KEY, JSON.stringify(data.nsfwFilterEnabled));
-    }
 
     if (data.fontSize !== null && data.fontSize !== undefined) {
       await AsyncStorage.setItem(FONT_SIZE_KEY, String(data.fontSize));
@@ -293,7 +271,6 @@ export async function importUserProfile(fileContent: string): Promise<{
       visitedArticles: data.visitedArticles || [],
       readingProgress: data.readingProgress || {},
       theme: data.theme ?? null,
-      nsfwFilterEnabled: data.nsfwFilterEnabled ?? null,
       fontSize: data.fontSize ?? null,
     };
   } catch (error) {

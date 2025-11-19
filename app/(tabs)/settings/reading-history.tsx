@@ -2,6 +2,7 @@ import { fetchArticleSummary } from '@/api';
 import RecommendationCard from '@/components/article/RecommendationCard';
 import { LAYOUT } from '@/constants/layout';
 import { SPACING } from '@/constants/spacing';
+import { TYPOGRAPHY } from '@/constants/typography';
 import { useBookmarkToggle, useReadingProgress, useVisitedArticles } from '@/hooks';
 import { RecommendationItem } from '@/types/components';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
@@ -233,8 +234,10 @@ export default function ReadingHistoryScreen() {
         <Appbar.Content
           title="Reading History"
           titleStyle={{
-            fontWeight: '700',
-            fontSize: 20,
+            // MD3: Center-aligned app bars use 22sp title
+            // Reference: https://m3.material.io/components/app-bars/overview
+            fontWeight: '500', // MD3: Medium weight (500) for app bar titles
+            fontSize: TYPOGRAPHY.appBarTitle,
           }}
         />
       </Appbar.Header>
@@ -247,7 +250,7 @@ export default function ReadingHistoryScreen() {
         {/* Clear History Section */}
         <List.Section>
           <List.Subheader>Manage History</List.Subheader>
-          <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+          <View style={{ paddingHorizontal: SPACING.base, paddingBottom: SPACING.base }}>
             <Text
               variant="bodySmall"
               style={{
@@ -416,7 +419,15 @@ export default function ReadingHistoryScreen() {
       </ScrollView>
 
       <Portal>
-        <Dialog visible={showConfirmDialog} onDismiss={() => setShowConfirmDialog(false)}>
+        <Dialog
+          visible={showConfirmDialog}
+          onDismiss={() => setShowConfirmDialog(false)}
+          style={{
+            maxWidth: Math.min(availableWidth - SPACING.base * 2, 500),
+            alignSelf: 'center',
+            marginHorizontal: SPACING.base,
+          }}
+        >
           <Dialog.Title>Reset Reading History</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
@@ -437,10 +448,16 @@ export default function ReadingHistoryScreen() {
             )}
           </Dialog.Content>
           <Dialog.Actions>
+            {/* M3: Dismissive action (Cancel) on left, affirmative action (Reset) on right */}
             <Button mode="outlined" onPress={() => setShowConfirmDialog(false)}>
               Cancel
             </Button>
-            <Button mode="outlined" onPress={confirmClearHistory} textColor={theme.colors.error}>
+            <Button 
+              mode="contained" 
+              onPress={confirmClearHistory}
+              buttonColor={theme.colors.error}
+              textColor={theme.colors.onError}
+            >
               Reset
             </Button>
           </Dialog.Actions>

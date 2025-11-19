@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { ProgressBar, Text, useTheme } from 'react-native-paper';
+import { SPACING } from '../../constants/spacing';
 
 interface ProgressIndicatorProps {
   /**
@@ -40,7 +41,7 @@ export default function ProgressIndicator({
   return (
     <View
       style={{
-        padding: 20,
+        padding: SPACING.base + SPACING.xs, // M3: 20dp padding (16dp + 4dp)
         backgroundColor: theme.colors.surface,
         borderRadius: theme.roundness,
         minWidth: 300,
@@ -51,7 +52,7 @@ export default function ProgressIndicator({
         <Text
           variant="bodyMedium"
           style={{
-            marginBottom: 16,
+            marginBottom: SPACING.base, // M3: 16dp spacing
             color: theme.colors.onSurface,
             textAlign: 'center',
           }}
@@ -60,11 +61,11 @@ export default function ProgressIndicator({
         </Text>
       )}
 
-      <View style={{ marginBottom: 8 }}>
+      <View style={{ marginBottom: SPACING.sm }}> {/* M3: 8dp spacing */}
         <ProgressBar
           progress={clampedProgress}
           color={theme.colors.primary}
-          style={{ height: 8, borderRadius: 4 }}
+          style={{ height: 4, borderRadius: 2 }} // M3: Progress bar height is 4dp, corner radius is 2dp (half of height)
         />
       </View>
 
