@@ -83,12 +83,18 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           echo "Starting EAS build..."
-          BUILD_OUTPUT=$(eas build --platform android --profile production --non-interactive --no-wait --json 2>/dev/null)
-          BUILD_ID=$(echo "$BUILD_OUTPUT" | jq -r '.id // .[0].id' 2>/dev/null)
+          # Capture JSON from stdout, let stderr show for debugging
+          BUILD_JSON=$(eas build --platform android --profile production --non-interactive --no-wait --json) || {
+            EXIT_CODE=$?
+            echo "EAS build failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          }
+          
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r 'if type == "array" then .[0].id else .id end' 2>/dev/null)
           
           if [ "$BUILD_ID" = "null" ] || [ -z "$BUILD_ID" ]; then
-            echo "Failed to extract build ID:"
-            echo "$BUILD_OUTPUT"
+            echo "Failed to extract build ID. JSON output:"
+            echo "$BUILD_JSON"
             exit 1
           fi
           
@@ -101,11 +107,14 @@ jobs:
           LAST_STATUS=""
           
           while [ $ELAPSED -lt $MAX_WAIT ]; do
-            STATUS_OUTPUT=$(eas build:view $BUILD_ID --json 2>/dev/null)
-            STATUS=$(echo "$STATUS_OUTPUT" | jq -r '.status // .[0].status' 2>/dev/null)
+            STATUS_OUTPUT=$(eas build:view $BUILD_ID --json) || {
+              echo "Failed to get build status (command failed)"
+              exit 1
+            }
+            STATUS=$(echo "$STATUS_OUTPUT" | jq -r 'if type == "array" then .[0].status else .status end' 2>/dev/null)
             
             if [ -z "$STATUS" ] || [ "$STATUS" = "null" ]; then
-              echo "Failed to get build status. Output:"
+              echo "Failed to parse build status. Output:"
               echo "$STATUS_OUTPUT"
               exit 1
             fi
