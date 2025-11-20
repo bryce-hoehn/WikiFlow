@@ -83,29 +83,34 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           BUILD_ID=$(eas build --platform android --profile production --non-interactive --no-wait --json | jq -r 'if type == "array" then .[0].id else .id end')
-          echo "Build ID: $BUILD_ID"
           if [ "$BUILD_ID" = "null" ] || [ -z "$BUILD_ID" ]; then
-            echo "Failed to get build ID"
             exit 1
           fi
-          echo "Waiting for build to complete..."
           MAX_WAIT=3600
           ELAPSED=0
+          NEW_STATUS_START=0
+          NEW_STATUS_TIMEOUT=600
           while [ $ELAPSED -lt $MAX_WAIT ]; do
             STATUS=$(eas build:view $BUILD_ID --json | jq -r 'if type == "array" then .[0].status else .status end')
-            echo "Build status: $STATUS (elapsed: ${ELAPSED}s)"
+            if [ "$STATUS" = "new" ]; then
+              if [ $NEW_STATUS_START -eq 0 ]; then
+                NEW_STATUS_START=$ELAPSED
+              fi
+              if [ $((ELAPSED - NEW_STATUS_START)) -ge $NEW_STATUS_TIMEOUT ]; then
+                exit 1
+              fi
+            else
+              NEW_STATUS_START=0
+            fi
             if [ "$STATUS" = "finished" ]; then
-              echo "Build completed successfully"
               break
             elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ]; then
-              echo "Build failed with status: $STATUS"
               exit 1
             fi
             sleep 30
             ELAPSED=$((ELAPSED + 30))
           done
           if [ $ELAPSED -ge $MAX_WAIT ]; then
-            echo "Build timed out after 1 hour"
             exit 1
           fi
           eas build:download $BUILD_ID --platform android --output ./WikiScroll-v${{ steps.bump_version.outputs.version }}-android.apk
