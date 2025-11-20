@@ -39,30 +39,15 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Login to EAS
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "Error: EXPO_TOKEN secret is not set"
-            exit 1
-          fi
-          eas login --non-interactive
-
       - name: Bump version in app.json
         id: bump_version
         run: |
-          # Read current version
           CURRENT_VERSION=$(node -p "require('./app.json').expo.version")
           echo "Current version: $CURRENT_VERSION"
-          
-          # Parse version parts
           IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
           MAJOR=${VERSION_PARTS[0]}
           MINOR=${VERSION_PARTS[1]}
           PATCH=${VERSION_PARTS[2]}
-          
-          # Bump version based on input
           case "${{ github.event.inputs.version_bump }}" in
             major)
               MAJOR=$((MAJOR + 1))
@@ -77,20 +62,15 @@ jobs:
               PATCH=$((PATCH + 1))
               ;;
           esac
-          
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           echo "New version: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          
-          # Update app.json
           node -e "
             const fs = require('fs');
             const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
             appJson.expo.version = '$NEW_VERSION';
             fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2) + '\n');
           "
-          
-          # Also update package.json version for consistency
           npm version $NEW_VERSION --no-git-tag-version
 
       - name: Configure Git
@@ -102,30 +82,18 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          # Start build
-          # Note: Android credentials must be set up first via 'eas credentials' or EAS dashboard
-          eas build --platform android --profile production --non-interactive --no-wait
-          
-          # Wait a bit for build to be registered
-          sleep 10
-          
-          # Get the latest build ID
-          BUILD_ID=$(eas build:list --platform android --profile production --limit 1 --json | jq -r '.[0].id')
+          BUILD_ID=$(eas build --platform android --profile production --non-interactive --no-wait --json | jq -r '.id')
           echo "Build ID: $BUILD_ID"
-          
           if [ "$BUILD_ID" = "null" ] || [ -z "$BUILD_ID" ]; then
             echo "Failed to get build ID"
             exit 1
           fi
-          
-          # Poll for build completion
           echo "Waiting for build to complete..."
-          MAX_WAIT=3600  # 1 hour max wait
+          MAX_WAIT=3600
           ELAPSED=0
           while [ $ELAPSED -lt $MAX_WAIT ]; do
             STATUS=$(eas build:view $BUILD_ID --json | jq -r '.status')
             echo "Build status: $STATUS (elapsed: ${ELAPSED}s)"
-            
             if [ "$STATUS" = "finished" ]; then
               echo "Build completed successfully"
               break
@@ -133,17 +101,13 @@ jobs:
               echo "Build failed with status: $STATUS"
               exit 1
             fi
-            
             sleep 30
             ELAPSED=$((ELAPSED + 30))
           done
-          
           if [ $ELAPSED -ge $MAX_WAIT ]; then
             echo "Build timed out after 1 hour"
             exit 1
           fi
-          
-          # Download APK with proper name
           eas build:download $BUILD_ID --platform android --output ./WikiScroll-v${{ steps.bump_version.outputs.version }}-android.apk
 
       - name: Build Web
@@ -152,9 +116,7 @@ jobs:
 
       - name: Compress Web Build
         run: |
-          cd dist
-          zip -r ../WikiScroll-v${{ steps.bump_version.outputs.version }}-web.zip .
-          cd ..
+          (cd dist && zip -r ../WikiScroll-v${{ steps.bump_version.outputs.version }}-web.zip .)
 
       - name: Commit version bump
         run: |
