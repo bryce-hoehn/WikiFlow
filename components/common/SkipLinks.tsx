@@ -68,7 +68,17 @@ export default function SkipLinks() {
   return (
     <TouchableRipple
       ref={skipLinkRef}
-      style={[styles.skipLink, { backgroundColor: theme.colors.primary }]}
+      style={[
+        styles.skipLink,
+        { backgroundColor: theme.colors.primary },
+        // Hide immediately on web before CSS class is applied
+        Platform.OS === 'web' && {
+          position: 'absolute',
+          top: -100,
+          opacity: 0,
+          zIndex: 10000,
+        },
+      ]}
       onPress={handlePress}
       accessibilityLabel="Skip to main content"
       accessibilityHint="Skips navigation and goes directly to the main article feed"
