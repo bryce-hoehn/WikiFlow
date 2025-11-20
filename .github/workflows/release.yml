@@ -25,7 +25,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -38,6 +38,16 @@ jobs:
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Login to EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "Error: EXPO_TOKEN secret is not set"
+            exit 1
+          fi
+          eas login --non-interactive
 
       - name: Bump version in app.json
         id: bump_version
@@ -93,6 +103,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           # Start build
+          # Note: Android credentials must be set up first via 'eas credentials' or EAS dashboard
           eas build --platform android --profile production --non-interactive --no-wait
           
           # Wait a bit for build to be registered
