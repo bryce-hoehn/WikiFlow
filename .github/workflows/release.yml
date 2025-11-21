@@ -30,14 +30,24 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
         run: npm ci
-
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
-
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Bump version in app.json
         id: bump_version
@@ -78,76 +88,38 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: Build Android APK
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Prebuild Android
         run: |
-          echo "Starting EAS build..."
-          # Capture JSON from stdout, let stderr show for debugging
-          BUILD_JSON=$(eas build --platform android --profile production --non-interactive --no-wait --json) || {
-            EXIT_CODE=$?
-            echo "EAS build failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          }
-          
-          BUILD_ID=$(echo "$BUILD_JSON" | jq -r 'if type == "array" then .[0].id else .id end' 2>/dev/null)
-          
-          if [ "$BUILD_ID" = "null" ] || [ -z "$BUILD_ID" ]; then
-            echo "Failed to extract build ID. JSON output:"
-            echo "$BUILD_JSON"
-            exit 1
-          fi
-          
-          echo "Build ID: $BUILD_ID - Waiting for completion..."
-          
-          MAX_WAIT=3600
-          NEW_STATUS_TIMEOUT=600
-          ELAPSED=0
-          NEW_STATUS_START=0
-          LAST_STATUS=""
-          
-          while [ $ELAPSED -lt $MAX_WAIT ]; do
-            STATUS_OUTPUT=$(eas build:view $BUILD_ID --json) || {
-              echo "Failed to get build status (command failed)"
-              exit 1
-            }
-            STATUS=$(echo "$STATUS_OUTPUT" | jq -r 'if type == "array" then .[0].status else .status end' 2>/dev/null)
-            
-            if [ -z "$STATUS" ] || [ "$STATUS" = "null" ]; then
-              echo "Failed to parse build status. Output:"
-              echo "$STATUS_OUTPUT"
-              exit 1
-            fi
-            
-            [ "$STATUS" != "$LAST_STATUS" ] && echo "Status: $STATUS (${ELAPSED}s)" && LAST_STATUS="$STATUS"
-            
-            case "$STATUS" in
-              finished)
-                echo "Build completed!"
-                break
-                ;;
-              errored|canceled)
-                echo "Build failed: $STATUS"
-                exit 1
-                ;;
-              new)
-                [ $NEW_STATUS_START -eq 0 ] && NEW_STATUS_START=$ELAPSED
-                [ $((ELAPSED - NEW_STATUS_START)) -ge $NEW_STATUS_TIMEOUT ] && \
-                  echo "Stuck in 'new' status >${NEW_STATUS_TIMEOUT}s" && exit 1
-                ;;
-              *)
-                NEW_STATUS_START=0
-                ;;
-            esac
-            
-            sleep 30
-            ELAPSED=$((ELAPSED + 30))
-          done
-          
-          [ $ELAPSED -ge $MAX_WAIT ] && echo "Build timed out" && exit 1
-          
-          echo "Downloading build..."
-          eas build:download $BUILD_ID --platform android --output ./WikiScroll-v${{ steps.bump_version.outputs.version }}-android.apk
+          npx expo prebuild --platform android --clean
+
+      - name: Setup Android Keystore
+        run: |
+          # Create keystore file from secret (base64 encoded)
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          # Set up signing properties for Gradle (path relative to android/ directory)
+          cat >> android/gradle.properties << EOF
+          MYAPP_RELEASE_STORE_FILE=app/release.keystore
+          MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Update Android version
+        run: |
+          # Update version in build.gradle to match app.json
+          VERSION="${{ steps.bump_version.outputs.version }}"
+          # Extract version code from version (e.g., 1.2.3 -> 1002003)
+          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+          VERSION_CODE=$((${VERSION_PARTS[0]} * 1000000 + ${VERSION_PARTS[1]} * 1000 + ${VERSION_PARTS[2]}))
+          sed -i "s/versionName \".*\"/versionName \"$VERSION\"/" android/app/build.gradle
+          sed -i "s/versionCode [0-9]*/versionCode $VERSION_CODE/" android/app/build.gradle
+
+      - name: Build Android APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+          cd ..
+          cp android/app/build/outputs/apk/release/app-release.apk ./WikiScroll-v${{ steps.bump_version.outputs.version }}-android.apk
 
       - name: Build Web
         run: |
@@ -163,8 +135,6 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.bump_version.outputs.version }}"
 
       - name: Deploy to EAS
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           eas deploy --prod --non-interactive
 
