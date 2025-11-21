@@ -6,6 +6,7 @@ import BookmarkSortMenu, { SortOption } from '@/components/bookmarks/BookmarkSor
 import BookmarkTagEditor from '@/components/bookmarks/BookmarkTagEditor';
 import BookmarksEmptyState from '@/components/bookmarks/BookmarksEmptyState';
 import ProgressDialog from '@/components/common/ProgressDialog';
+import StandardEmptyState from '@/components/common/StandardEmptyState';
 import { LAYOUT } from '@/constants/layout';
 import { SPACING } from '@/constants/spacing';
 import { TYPOGRAPHY } from '@/constants/typography';
@@ -96,23 +97,6 @@ export default function BookmarksScreen() {
   const cardWidth =
     availableWidth > maxCardWidth ? maxCardWidth : availableWidth - SPACING.base * 2; // SPACING.base padding on each side
 
-  // Lazy load Fuse.js - only needed when searching
-  const [fuseModule, setFuseModule] = useState<typeof import('fuse.js') | null>(null);
-  const [isLoadingFuse, setIsLoadingFuse] = useState(false);
-
-  useEffect(() => {
-    if (searchQuery.trim() && !fuseModule && !isLoadingFuse) {
-      setIsLoadingFuse(true);
-      import('fuse.js')
-        .then((module) => {
-          setFuseModule(module);
-          setIsLoadingFuse(false);
-        })
-        .catch(() => {
-          setIsLoadingFuse(false);
-        });
-    }
-  }, [searchQuery, fuseModule, isLoadingFuse]);
 
   // Filter and sort bookmarks
   const filteredAndSortedBookmarks = useMemo(() => {
@@ -123,34 +107,15 @@ export default function BookmarksScreen() {
       filtered = filtered.filter((b) => b.tags?.includes(selectedTag));
     }
 
-    // Filter by search query using Fuse.js for fuzzy search
+    // Filter by search query
     if (searchQuery.trim()) {
-      if (fuseModule) {
-        // Use Fuse.js for fuzzy search when loaded
-        const Fuse = fuseModule.default;
-        const fuse = new Fuse(filtered, {
-          keys: [
-            { name: 'title', weight: 0.7 },
-            { name: 'summary', weight: 0.3 },
-            { name: 'tags', weight: 0.1 },
-          ],
-          threshold: 0.4, // 0.0 = perfect match, 1.0 = match anything
-          includeScore: true,
-          minMatchCharLength: 2,
-        });
-
-        const searchResults = fuse.search(searchQuery);
-        filtered = searchResults.map((result) => result.item);
-      } else {
-        // Fallback to simple string matching while Fuse.js loads
-        const query = searchQuery.toLowerCase();
-        filtered = filtered.filter(
-          (b) =>
-            b.title.toLowerCase().includes(query) ||
-            b.summary?.toLowerCase().includes(query) ||
-            b.tags?.some((tag) => tag.toLowerCase().includes(query))
-        );
-      }
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(
+        (b) =>
+          (b.title && b.title.toLowerCase().includes(query)) ||
+          (b.summary && b.summary.toLowerCase().includes(query)) ||
+          (b.tags && b.tags.some((tag) => tag.toLowerCase().includes(query)))
+      );
     }
 
     // Sort
@@ -169,7 +134,7 @@ export default function BookmarksScreen() {
     });
 
     return filtered;
-  }, [bookmarks, searchQuery, selectedTag, sortOption, getProgress, fuseModule]);
+  }, [bookmarks, searchQuery, selectedTag, sortOption, getProgress]);
 
   // Image prefetching: Prefetch images for items about to become visible
   const { onViewableItemsChanged } = useImagePrefetching({
@@ -501,7 +466,22 @@ export default function BookmarksScreen() {
     ]
   );
 
-  const renderEmptyState = useCallback(() => <BookmarksEmptyState />, []);
+  const renderEmptyState = useCallback(() => {
+    const hasBookmarks = bookmarks.length > 0;
+    const hasSearchQuery = searchQuery.trim().length > 0;
+    
+    if (hasBookmarks && hasSearchQuery) {
+      return (
+        <StandardEmptyState
+          icon="magnify"
+          title="No Matches Found"
+          description={`No bookmarks match "${searchQuery}". Try a different search term or clear the search to see all bookmarks.`}
+        />
+      );
+    }
+    
+    return <BookmarksEmptyState />;
+  }, [bookmarks.length, searchQuery]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -669,7 +649,7 @@ export default function BookmarksScreen() {
         ref={flashListRef}
         data={filteredAndSortedBookmarks}
         renderItem={renderBookmarkCard}
-        keyExtractor={(item: Bookmark) => item.title + item.bookmarkedAt}
+        keyExtractor={(item: Bookmark, index: number) => item?.title ? `${item.title}-${item.bookmarkedAt}` : `bookmark-${index}`}
         {...({ estimatedItemSize: 220 } as any)}
         style={{ backgroundColor: theme.colors.background }}
         contentContainerStyle={{
