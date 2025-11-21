@@ -14,14 +14,35 @@ import { ScrollToTopProvider } from '../context/ScrollToTopContext';
 import { SnackbarProvider } from '../context/SnackbarContext';
 import { ThemeProvider } from '../context/ThemeProvider';
 
+// Filter console warnings for known harmless messages (works in both dev and prod)
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const message = args.join(' ');
+    
+    // Filter out harmless font visibility warnings from browser
+    if (
+      message.includes('Request for font') &&
+      message.includes('blocked at visibility level')
+    ) {
+      return; // Silently ignore font visibility warnings
+    }
+    
+    // In production, silence all warnings
+    if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+      return;
+    }
+    
+    // In development, show other warnings
+    originalWarn.apply(console, args);
+  };
+}
+
 // Silence development-only logs in production builds (aggressive sweep).
 // Filters console.error for known harmless third-party library errors.
 if (typeof __DEV__ !== 'undefined' && !__DEV__) {
   console.log = () => {};
   console.debug = () => {};
-  
-  // Silence warnings in production
-  console.warn = () => {};
   
   // Disable React Native LogBox warnings in production
   try {
