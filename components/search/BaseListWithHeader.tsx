@@ -1,9 +1,10 @@
 import { FlashList } from '@shopify/flash-list';
-import React, { memo, useCallback, useRef } from 'react';
-import { View } from 'react-native';
-import { List, Text, useTheme } from 'react-native-paper';
+import React, { memo, useCallback, useRef, useState } from 'react';
+import { Animated, Platform, View } from 'react-native';
+import { Divider, List, Text, useTheme } from 'react-native-paper';
+import { MOTION } from '../../constants/motion';
 import { SPACING } from '../../constants/spacing';
-import { useImagePrefetching } from '../../hooks';
+import { useImagePrefetching, useReducedMotion } from '../../hooks';
 import ResponsiveImage from '../common/ResponsiveImage';
 
 interface BaseListWithHeaderProps<T> {
@@ -25,6 +26,154 @@ interface BaseListWithHeaderProps<T> {
  * Base component for lists with headers
  * Consolidates common structure: header text and FlashList with List.Item
  */
+// Hoverable list item component for web hover animations
+function HoverableListItem<T>({
+  item,
+  title,
+  description,
+  thumbnail,
+  dimensions,
+  thumbnailSize,
+  defaultWidth,
+  defaultHeight,
+  fallbackIcon,
+  onItemPress,
+  accessibilityLabel,
+  accessibilityHint,
+  theme,
+}: {
+  item: T;
+  title: string;
+  description?: string;
+  thumbnail: string | null;
+  dimensions: { width: number; height: number } | null;
+  thumbnailSize: number;
+  defaultWidth: number;
+  defaultHeight: number;
+  fallbackIcon: string;
+  onItemPress: (item: T) => void;
+  accessibilityLabel?: (item: T) => string;
+  accessibilityHint?: (item: T) => string;
+  theme: any;
+}) {
+  const { reducedMotion } = useReducedMotion();
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverAnim = useRef(new Animated.Value(0)).current;
+  
+  const handleMouseEnter = () => {
+    if (Platform.OS === 'web' && !reducedMotion) {
+      setIsHovered(true);
+      Animated.timing(hoverAnim, {
+        toValue: 1,
+        duration: MOTION.durationShort,
+        useNativeDriver: false,
+      }).start();
+    } else if (Platform.OS === 'web' && reducedMotion) {
+      // Instant change when reduced motion is enabled
+      setIsHovered(true);
+      hoverAnim.setValue(1);
+    }
+  };
+  
+  const handleMouseLeave = () => {
+    if (Platform.OS === 'web' && !reducedMotion) {
+      setIsHovered(false);
+      Animated.timing(hoverAnim, {
+        toValue: 0,
+        duration: MOTION.durationShort,
+        useNativeDriver: false,
+      }).start();
+    } else if (Platform.OS === 'web' && reducedMotion) {
+      // Instant change when reduced motion is enabled
+      setIsHovered(false);
+      hoverAnim.setValue(0);
+    }
+  };
+  
+  const backgroundColor = hoverAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      theme.colors.elevation.level2,
+      theme.colors.elevation.level3,
+    ],
+  });
+  
+  const scale = hoverAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.01],
+  });
+
+  return (
+    <Animated.View
+      style={{
+        transform: [{ scale }],
+        marginHorizontal: Platform.OS === 'web' ? SPACING.sm : 0,
+        marginVertical: SPACING.xs / 2,
+        borderRadius: theme.roundness,
+        backgroundColor: Platform.OS === 'web' ? backgroundColor : theme.colors.elevation.level2,
+        overflow: 'hidden',
+      }}
+      {...(Platform.OS === 'web' && {
+        onMouseEnter: handleMouseEnter,
+        onMouseLeave: handleMouseLeave,
+      })}
+    >
+      <List.Item
+        title={title}
+        description={description}
+        style={{
+          backgroundColor: 'transparent',
+          padding: SPACING.base,
+          minHeight: 56,
+        }}
+        titleStyle={{
+          fontSize: 15,
+          fontWeight: '500',
+          lineHeight: 20,
+        }}
+        descriptionStyle={{
+          fontSize: 13,
+          lineHeight: 18,
+          marginTop: 2,
+        }}
+        left={(props) =>
+          thumbnail ? (
+            <ResponsiveImage
+              source={{
+                source: thumbnail,
+                width: dimensions?.width || defaultWidth,
+                height: dimensions?.height || defaultHeight,
+              }}
+              contentFit="cover"
+              style={{
+                width: thumbnailSize,
+                height: thumbnailSize,
+                borderRadius: theme.roundness * 2,
+                marginRight: SPACING.sm,
+              }}
+              alt={`Thumbnail for ${title}`}
+            />
+          ) : (
+            <View
+              style={{
+                width: thumbnailSize,
+                height: thumbnailSize,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <List.Icon {...props} icon={fallbackIcon} />
+            </View>
+          )
+        }
+        onPress={() => onItemPress(item)}
+        accessibilityLabel={accessibilityLabel ? accessibilityLabel(item) : `Open: ${title}`}
+        accessibilityHint={accessibilityHint ? accessibilityHint(item) : `Opens ${title}`}
+      />
+    </Animated.View>
+  );
+}
+
 function BaseListWithHeader<T>({
   data,
   headerTitle,
@@ -68,50 +217,20 @@ function BaseListWithHeader<T>({
       const defaultHeight = thumbnailSize;
 
       return (
-        <List.Item
+        <HoverableListItem
+          item={item}
           title={title}
           description={description}
-          style={{
-            backgroundColor: theme.colors.elevation.level2,
-            marginHorizontal: SPACING.sm,
-            marginVertical: SPACING.xs / 2,
-            borderRadius: theme.roundness,
-            // M3: List items use default padding from RNP (16dp horizontal)
-            // No need to override paddingVertical - RNP handles heights correctly
-          }}
-          left={(props) =>
-            thumbnail ? (
-              <ResponsiveImage
-                source={{
-                  source: thumbnail,
-                  width: dimensions?.width || defaultWidth,
-                  height: dimensions?.height || defaultHeight,
-                }}
-                contentFit="cover"
-                style={{
-                  width: thumbnailSize,
-                  height: thumbnailSize,
-                  borderRadius: theme.roundness * 2, // 8dp equivalent (4dp * 2)
-                  marginRight: SPACING.sm,
-                }}
-                alt={`Thumbnail for ${title}`}
-              />
-            ) : (
-              <View
-                style={{
-                  width: thumbnailSize,
-                  height: thumbnailSize,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <List.Icon {...props} icon={fallbackIcon} />
-              </View>
-            )
-          }
-          onPress={() => onItemPress(item)}
-          accessibilityLabel={accessibilityLabel ? accessibilityLabel(item) : `Open: ${title}`}
-          accessibilityHint={accessibilityHint ? accessibilityHint(item) : `Opens ${title}`}
+          thumbnail={thumbnail}
+          dimensions={dimensions}
+          thumbnailSize={thumbnailSize}
+          defaultWidth={defaultWidth}
+          defaultHeight={defaultHeight}
+          fallbackIcon={fallbackIcon}
+          onItemPress={onItemPress}
+          accessibilityLabel={accessibilityLabel}
+          accessibilityHint={accessibilityHint}
+          theme={theme}
         />
       );
     },
@@ -130,22 +249,25 @@ function BaseListWithHeader<T>({
 
   const renderHeader = useCallback(
     () => (
-      <Text
-        variant="titleSmall"
-        style={{
-          paddingHorizontal: SPACING.base,
-          paddingTop: SPACING.lg,
-          paddingBottom: SPACING.md,
-          color: theme.colors.onSurface,
-          fontWeight: '500',
-          letterSpacing: 0.15,
-        }}
-        // MD3 Accessibility: Proper header role - per https://m3.material.io/components/search/accessibility
-        accessibilityRole="header"
-        accessibilityLabel={headerTitle}
-      >
-        {headerTitle}
-      </Text>
+      <>
+        <Text
+          variant="titleMedium"
+          style={{
+            paddingHorizontal: Platform.OS === 'web' ? SPACING.md : SPACING.sm,
+            paddingTop: SPACING.lg,
+            paddingBottom: SPACING.lg,
+            color: theme.colors.onSurface,
+            fontWeight: '500',
+            letterSpacing: 0.15,
+          }}
+          // MD3 Accessibility: Proper header role - per https://m3.material.io/components/search/accessibility
+          accessibilityRole="header"
+          accessibilityLabel={headerTitle}
+        >
+          {headerTitle}
+        </Text>
+        <Divider style={{ marginHorizontal: Platform.OS === 'web' ? 0 : SPACING.xs, marginBottom: SPACING.xs }} />
+      </>
     ),
     [headerTitle, theme]
   );
@@ -159,9 +281,9 @@ function BaseListWithHeader<T>({
         keyExtractor={keyExtractor}
         {...({ estimatedItemSize } as any)}
         contentContainerStyle={{ 
-          paddingHorizontal: SPACING.sm, 
-          paddingTop: SPACING.sm, // M3: 8dp top padding for lists
-          paddingBottom: SPACING.sm, // M3: 8dp bottom padding for lists
+          paddingTop: SPACING.xs,
+          paddingBottom: SPACING.sm,
+          paddingHorizontal: Platform.OS === 'web' ? 0 : SPACING.xs,
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

@@ -27,15 +27,15 @@ export const fetchSearchSuggestions = async (query: string): Promise<SearchSugge
   if (!query.trim()) return [];
 
   try {
-    // Use Wikipedia Action API for search with page info in single request
     const params = {
       action: 'query',
-      list: 'search',
-      srsearch: query,
-      srlimit: 10,
+      generator: 'search',
+      gsrsearch: query,
+      gsrlimit: 10,
       prop: 'pageimages|description',
       piprop: 'thumbnail',
       pithumbsize: 200,
+      pilimit: 10,
       format: 'json',
       origin: '*',
     };
@@ -45,17 +45,18 @@ export const fetchSearchSuggestions = async (query: string): Promise<SearchSugge
       params,
     });
     const searchData = searchResponse.data;
-    const results = searchData.query?.search || [];
-
     const pages = searchData.query?.pages || {};
 
-    if (results.length === 0) return [];
+    if (Object.keys(pages).length === 0) return [];
 
-    return results.map((result: RawSearchResult) => {
-      const pageInfo = pages[result.pageid] || {};
+    const results = Object.values(pages)
+      .filter((page): page is PageInfo => 'title' in page)
+      .sort((a, b) => (a.index || 0) - (b.index || 0));
+
+    return results.map((pageInfo: PageInfo) => {
       return {
-        title: result.title,
-        description: pageInfo.description || result.snippet?.replace(/<[^>]*>/g, '') || '',
+        title: pageInfo.title,
+        description: pageInfo.description || '',
         image: pageInfo.thumbnail?.source,
       };
     });

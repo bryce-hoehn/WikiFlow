@@ -11,8 +11,9 @@ import {
   StyleSheet,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
-import { IconButton, Portal, Searchbar, useTheme } from 'react-native-paper';
+import { Portal, Searchbar, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EASING, MOTION } from '../../constants/motion';
 import { SPACING } from '../../constants/spacing';
@@ -43,9 +44,12 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
   const theme = useTheme();
   const { reducedMotion } = useReducedMotion();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [query, setQuery] = useState(initialQuery);
+  const [isFocused, setIsFocused] = useState(false);
   const { visitedArticles } = useVisitedArticles();
   const searchInputRef = useRef<TextInput>(null);
+  const showingBackArrowRef = useRef(false);
   const fadeAnim = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
   const slideAnim = useRef(new Animated.Value(reducedMotion ? 0 : -20)).current;
   const isNavigatingRef = useRef(false);
@@ -139,10 +143,20 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
     }
   }, [visible]);
 
-  const handleSearchSubmit = useCallback(() => {
+  const handleSearchSubmit = useCallback(async () => {
     if (query.trim()) {
-      router.push(`/article/${encodeURIComponent(query)}`);
-      onClose();
+      // Try to find best match (exact or fuzzy)
+      const { findBestArticleMatch } = await import('@/utils/fuzzyArticleSearch');
+      const bestMatch = await findBestArticleMatch(query);
+      if (bestMatch) {
+        router.push(`/article/${encodeURIComponent(bestMatch)}`);
+        onClose();
+      } else {
+        // Show error if no match found - could show a snackbar here
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn('No article found for query:', query);
+        }
+      }
     }
   }, [query, onClose]);
 
@@ -166,6 +180,7 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
   );
 
   const handleClose = useCallback(() => {
+    setIsFocused(false);
     Keyboard.dismiss();
     onClose();
   }, [onClose]);
@@ -235,16 +250,19 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
           importantForAccessibility="yes"
           collapsable={false}
         >
-          {/* Full-width search bar directly under status bar */}
-          {/* MD3 Search View: Search bar container with proper elevation - per https://m3.material.io/components/search/guidelines */}
+          {/* MD3 SearchView: Search bar container - per https://m3.material.io/components/search/specs */}
           <View
             style={[
               styles.searchBarContainer,
               {
                 paddingTop: insets.top,
                 backgroundColor: theme.colors.surface,
-                // MD3: 56dp search bar height + safe area top
                 height: 56 + insets.top,
+                ...Platform.select({
+                  web: {
+                    boxShadow: `0 1px 3px ${theme.colors.shadow}1A`,
+                  },
+                }),
               },
             ]}
           >
@@ -254,22 +272,40 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
                 { 
                   justifyContent: 'center', 
                   flex: 1, 
-                  // MD3: 56dp minimum height for search bar
                   minHeight: 56,
                   height: 56,
+                  paddingHorizontal: Platform.OS === 'web' ? SPACING.base : SPACING.sm,
                 },
               ]}
+              pointerEvents="box-none"
             >
               <Searchbar
                 ref={searchInputRef}
                 placeholder="Search Wikipedia"
                 value={query}
                 onChangeText={setQuery}
+                onFocus={() => {
+                  setIsFocused(true);
+                  showingBackArrowRef.current = true;
+                }}
+                onBlur={() => {
+                  // Delay to allow icon press to register
+                  setTimeout(() => {
+                    setIsFocused(false);
+                    showingBackArrowRef.current = false;
+                  }, 200);
+                }}
                 onSubmitEditing={handleSearchSubmit}
-                onIconPress={handleSearchSubmit}
-                onClearIconPress={() => setQuery('')}
-                // Hide clearIcon on Android to avoid duplicate X buttons
-                // Android's keyboard shows its own clear button, and Searchbar also renders one
+                onIconPress={() => {
+                  // Back arrow is always visible when search view is open, so always close
+                  if (visible) {
+                    handleClose();
+                  }
+                }}
+                onClearIconPress={() => {
+                  setQuery('');
+                  searchInputRef.current?.focus();
+                }}
                 clearIcon={
                   Platform.OS === 'android'
                     ? undefined
@@ -277,6 +313,7 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
                       ? 'close'
                       : undefined
                 }
+                icon={visible ? 'arrow-left' : 'magnify'}
                 mode="bar"
                 style={[
                   styles.searchBar,
@@ -284,7 +321,6 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
                     elevation: 0,
                     backgroundColor: 'transparent',
                     borderRadius: 0,
-                    // MD3: Ensure 56dp height for search bars - per https://m3.material.io/components/search/specs
                     minHeight: 56,
                     height: 56,
                   },
@@ -314,17 +350,6 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
                   textContentType: 'none',
                 })}
               />
-              <IconButton
-                icon="close"
-                size={24}
-                onPress={handleClose}
-                style={styles.closeButton}
-                iconColor={theme.colors.onSurface}
-                // MD3 Accessibility: Clear button label and hint - per https://m3.material.io/components/search/accessibility
-                accessibilityLabel="Close search"
-                accessibilityRole="button"
-                accessibilityHint="Closes the search overlay and returns to the previous screen"
-              />
             </View>
           </View>
 
@@ -333,10 +358,17 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
               styles.scrollView,
               Platform.OS !== 'web' && {
                 // MD3: Account for 56dp search bar + safe area
-                maxHeight: SCREEN_HEIGHT - (56 + insets.top),
+                maxHeight: windowHeight - (56 + insets.top),
               },
             ]}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingHorizontal: Platform.OS === 'web' 
+                  ? SPACING.base 
+                  : Math.min(SPACING.sm, windowWidth * 0.03),
+              },
+            ]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={true}
@@ -399,8 +431,7 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
     </Animated.View>
   );
 
-  // On web, use Portal with backdrop. On mobile, also use Portal for proper z-index
-  // Dynamic backdrop style using theme colors
+  // On web, use Portal with backdrop for full-screen overlay
   const backdropStyle = Platform.select({
     web: {
       position: 'fixed' as const,
@@ -408,11 +439,8 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: theme.colors.scrim + '80', // 50% opacity (0x80 in hex = 128/255 ≈ 0.5)
+      backgroundColor: theme.colors.scrim + '80',
       zIndex: 999,
-      display: 'flex' as const,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
     },
     default: {},
   });
@@ -424,11 +452,9 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
           style={backdropStyle}
           onStartShouldSetResponder={() => true}
           onResponderRelease={handleBackdropPress}
-          // Web-specific click handler
           {...(Platform.OS === 'web' && {
             onClick: handleBackdropPress,
             onMouseDown: (e: any) => {
-              // Prevent event from bubbling to content
               if (e.target === e.currentTarget) {
                 e.stopPropagation();
               }
@@ -442,7 +468,6 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
             style={styles.overlayContainer}
             onStartShouldSetResponder={() => false}
             onResponderRelease={(e) => e.stopPropagation()}
-            // Web-specific click handler to prevent backdrop close
             {...(Platform.OS === 'web' && {
               onClick: (e: any) => e.stopPropagation(),
             })}
@@ -506,10 +531,13 @@ const styles = StyleSheet.create({
   overlayContainer: {
     ...Platform.select({
       web: {
+        position: 'fixed' as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         width: '100%',
         height: '100%',
-        maxWidth: '100%',
-        maxHeight: '100%',
         zIndex: 1000,
       },
       default: {},
@@ -517,15 +545,12 @@ const styles = StyleSheet.create({
   },
   searchBarContainer: {
     width: '100%',
-    // MD3 Search View: Proper elevation for search bar container - per https://m3.material.io/components/search/guidelines
     ...Platform.select({
       web: {
         paddingBottom: SPACING.sm,
-        // Web uses box-shadow instead of elevation
       },
       default: {
         paddingBottom: SPACING.xs,
-        // MD3: elevation.level1 for search view header
         elevation: 1,
       },
     }),
@@ -533,8 +558,8 @@ const styles = StyleSheet.create({
   searchBarWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.base,
     gap: SPACING.xs,
+    // paddingHorizontal will be set dynamically based on platform
   },
   searchBar: {
     flex: 1,
@@ -550,7 +575,7 @@ const styles = StyleSheet.create({
     // MD3 Search View: Proper content padding - per https://m3.material.io/components/search/guidelines
     paddingTop: SPACING.md,
     paddingBottom: SPACING.base,
-    paddingHorizontal: SPACING.base,
+    // paddingHorizontal will be set dynamically based on screen width
   },
   skeletonContainer: {
     // Match BaseListWithHeader contentContainerStyle padding

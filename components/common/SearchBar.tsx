@@ -1,21 +1,15 @@
-// Native date formatting - no external dependency needed
-import { MOTION } from '@/constants/motion';
+import { LAYOUT } from '@/constants/layout';
 import { SPACING } from '@/constants/spacing';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Platform, ScrollView, StyleSheet, TextInput, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { Portal, Searchbar, useTheme } from 'react-native-paper';
 import { useDebounce, useSearchSuggestions, useVisitedArticles } from '../../hooks';
+import NoResultsState from '../search/NoResultsState';
+import RecentArticlesList from '../search/RecentArticlesList';
 import SearchOverlay from '../search/SearchOverlay';
+import SearchResultSkeleton from '../search/SearchResultSkeleton';
+import SearchResultsList from '../search/SearchResultsList';
 
 interface SearchBarProps {
   value?: string;
@@ -32,11 +26,9 @@ interface SearchBarProps {
 }
 
 /**
- * Clean, Material Design 3 compliant SearchBar component
- *
- * Platform behavior:
- * - Web: Shows dropdown suggestions menu (Google-style)
- * - Mobile: Opens full-screen SearchOverlay modal
+ * Material Design 3 compliant SearchBar component
+ * - Large screens/web: Shows docked dropdown below search bar
+ * - Mobile: Shows full-screen SearchView overlay
  */
 export default function SearchBar({
   value: controlledValue,
@@ -52,116 +44,36 @@ export default function SearchBar({
   disableOverlay = false,
 }: SearchBarProps) {
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width >= LAYOUT.DESKTOP_BREAKPOINT;
   const [internalValue, setInternalValue] = useState('');
-  const [showWebMenu, setShowWebMenu] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const inputRef = useRef<TextInput>(null);
   const searchBarRef = useRef<View>(null);
   const isNavigatingRef = useRef(false);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Controlled or uncontrolled state
   const value = controlledValue !== undefined ? controlledValue : internalValue;
   const onChangeText = controlledOnChangeText || setInternalValue;
 
-  // Web: Search suggestions
+  // Search suggestions for dropdown
   const debouncedQuery = useDebounce(value || '', 300);
-  const { data: suggestions, isLoading: isLoadingSuggestions } =
-    useSearchSuggestions(debouncedQuery);
+  const { data: suggestions, isLoading: isLoadingSuggestions } = useSearchSuggestions(debouncedQuery);
   const { visitedArticles } = useVisitedArticles();
-
-  const handleFocus = () => {
-    // Don't open overlay if we're navigating (prevents overlay from reopening after navigation)
-    if (isNavigatingRef.current) {
-      isNavigatingRef.current = false;
-      onFocus?.();
-      return;
-    }
-    if (!disableOverlay) {
-      if (Platform.OS === 'web') {
-        // Remeasure position when opening menu
-        setTimeout(() => measureSearchBarPosition(), 0);
-        setShowWebMenu(true);
-      } else {
-        setShowMobileOverlay(true);
-      }
-    }
-    onFocus?.();
-  };
-
-  const handleBlur = () => {
-    if (Platform.OS === 'web') {
-      // Delay to allow menu clicks
-      setTimeout(() => setShowWebMenu(false), MOTION.durationMedium);
-    }
-    onBlur?.();
-  };
-
-  const handleSuggestionClick = (title: string) => {
-    onChangeText(title);
-    // Set navigating flag to prevent overlay from reopening
-    isNavigatingRef.current = true;
-    if (Platform.OS === 'web') {
-      setShowWebMenu(false);
-      inputRef.current?.blur();
-    } else {
-      setShowMobileOverlay(false);
-    }
-    router.push(`/article/${encodeURIComponent(title)}`);
-  };
-
-  const handleIconPress = () => {
-    if (!disableOverlay) {
-      if (Platform.OS === 'web') {
-        setShowWebMenu(true);
-      } else {
-        setShowMobileOverlay(true);
-      }
-    }
-    inputRef.current?.focus();
-    onIconPress?.();
-  };
-
-  const handleClear = () => {
-    onChangeText('');
-    inputRef.current?.focus();
-  };
-
-  const handleOverlayClose = useCallback(() => {
-    setShowMobileOverlay(false);
-    inputRef.current?.blur();
-  }, []);
-
-  const handleSubmit = () => {
-    if (Platform.OS === 'web') {
-      onSubmitEditing?.();
-    } else {
-      if (!showMobileOverlay && !disableOverlay) {
-        setShowMobileOverlay(true);
-      } else {
-        onSubmitEditing?.();
-      }
-    }
-  };
-
-  // MD3 styling - per https://m3.material.io/components/search/specs
-  // Use surfaceVariant background and elevation 2 for better prominence
-  const elevation = Platform.select({ android: 2, ios: 0, web: 2 });
-  const backgroundColor = theme.colors.surfaceVariant;
-  const shouldShowWebMenu = Platform.OS === 'web' && showWebMenu && !disableOverlay;
-
-  // Web: Prepare suggestions and recent articles
+  
   const safeSuggestions = suggestions || [];
   const hasQuery = debouncedQuery.trim().length > 2;
   const showSuggestions = safeSuggestions.length > 0 && !isLoadingSuggestions && hasQuery;
-  // Memoize to prevent unnecessary recalculations when visitedArticles reference changes
-  const recentVisitedArticles = useMemo(() => visitedArticles.slice(0, 5), [visitedArticles]);
-  const showRecent = recentVisitedArticles.length > 0 && !hasQuery;
-  const showLoading = isLoadingSuggestions && hasQuery;
+  const showNoResults = hasQuery && safeSuggestions.length === 0 && !isLoadingSuggestions;
+  const recentVisitedArticles = useMemo(() => visitedArticles.slice(0, 10), [visitedArticles]);
+  const showRecent = recentVisitedArticles.length > 0 && !showSuggestions && !showNoResults && !isLoadingSuggestions;
 
   const measureSearchBarPosition = () => {
-    if (Platform.OS === 'web' && searchBarRef.current) {
+    if (searchBarRef.current) {
       searchBarRef.current.measure((x, y, width, height, pageX, pageY) => {
         setDropdownPosition({
           top: pageY + height + 4,
@@ -172,13 +84,122 @@ export default function SearchBar({
     }
   };
 
-  const handleSearchBarLayout = () => {
-    measureSearchBarPosition();
+  const handleFocus = () => {
+    setIsFocused(true);
+    // Clear any pending blur timeout
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+
+    if (isNavigatingRef.current) {
+      isNavigatingRef.current = false;
+      onFocus?.();
+      return;
+    }
+    if (!disableOverlay) {
+      if (isLargeScreen) {
+        setTimeout(() => measureSearchBarPosition(), 0);
+        setShowDropdown(true);
+      } else {
+        setShowMobileOverlay(true);
+      }
+    }
+    onFocus?.();
   };
 
+  const handleBlur = () => {
+    setIsFocused(false);
+    // On large screens, delay closing dropdown to allow clicks inside dropdown
+    // Dropdown closes via close button or clicking outside backdrop
+    if (isLargeScreen) {
+      blurTimeoutRef.current = setTimeout(() => {
+        // Only close if dropdown is still open and user hasn't clicked inside
+        setShowDropdown(false);
+      }, 200);
+    }
+    onBlur?.();
+  };
+
+  const handleSuggestionClick = (title: string) => {
+    onChangeText(title);
+    isNavigatingRef.current = true;
+    if (isLargeScreen) {
+      setShowDropdown(false);
+    } else {
+      setShowMobileOverlay(false);
+    }
+    inputRef.current?.blur();
+    router.push(`/article/${encodeURIComponent(title)}`);
+  };
+
+  const handleIconPress = () => {
+    if (!disableOverlay) {
+      if (isLargeScreen) {
+        setTimeout(() => measureSearchBarPosition(), 0);
+        setShowDropdown(true);
+      } else {
+        setShowMobileOverlay(true);
+      }
+    }
+    inputRef.current?.focus();
+    onIconPress?.();
+  };
+
+  const handleClear = (e?: any) => {
+    e?.stopPropagation?.();
+    onChangeText('');
+    inputRef.current?.focus();
+  };
+
+  const handleBackPress = () => {
+    setIsFocused(false);
+    if (isLargeScreen) {
+      setShowDropdown(false);
+    } else {
+      setShowMobileOverlay(false);
+    }
+    inputRef.current?.blur();
+  };
+
+  const handleOverlayClose = useCallback(() => {
+    setIsFocused(false);
+    if (isLargeScreen) {
+      setShowDropdown(false);
+    } else {
+      setShowMobileOverlay(false);
+    }
+    inputRef.current?.blur();
+  }, [isLargeScreen]);
+
+  const handleSuggestionClickDocked = useCallback((title: string) => {
+    onChangeText(title);
+    isNavigatingRef.current = true;
+    setShowDropdown(false);
+    inputRef.current?.blur();
+    router.push(`/article/${encodeURIComponent(title)}`);
+  }, [onChangeText]);
+
+  const handleSubmit = () => {
+    if (isLargeScreen) {
+      onSubmitEditing?.();
+    } else {
+      if (!showMobileOverlay && !disableOverlay) {
+        setShowMobileOverlay(true);
+      } else {
+        onSubmitEditing?.();
+      }
+    }
+  };
+
+  // MD3 SearchBar styling - per https://m3.material.io/components/search/specs
+  // Height: 56dp, Background: surfaceVariant, Elevation: 2dp, Corner radius: 12dp (corner.medium)
+  const elevation = Platform.select({ android: 2, ios: 0, web: 2 });
+  const backgroundColor = theme.colors.surfaceVariant;
+
   return (
-    <View style={[style, { position: 'relative' }]}>
-      <View ref={searchBarRef} onLayout={handleSearchBarLayout}>
+    <View style={[style, { position: 'relative', zIndex: 10000 }]}>
+      <View ref={searchBarRef} onLayout={measureSearchBarPosition}>
         <Searchbar
           ref={inputRef}
           placeholder={placeholder}
@@ -187,15 +208,24 @@ export default function SearchBar({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onSubmitEditing={handleSubmit}
-          onIconPress={handleIconPress}
+          onIconPress={() => {
+            // If showing back arrow (dropdown/overlay open), close it
+            // If showing magnify icon, open overlay/dropdown
+            if (showDropdown || showMobileOverlay) {
+              handleBackPress();
+            } else {
+              handleIconPress();
+            }
+          }}
           onClearIconPress={handleClear}
-          clearIcon={value && value.length > 0 ? 'close' : undefined}
+          clearIcon={value && value.length > 0 && isFocused ? 'close' : undefined}
+          icon={(isFocused || showDropdown || showMobileOverlay) ? 'arrow-left' : 'magnify'}
           mode="bar"
           style={{
             elevation,
             backgroundColor,
-            borderRadius: theme.roundness * 3,
-            minHeight: 56,
+            borderRadius: theme.roundness * 3, // 12dp (corner.medium)
+            minHeight: 56, // MD3: 56dp height
             height: 56,
           }}
           inputStyle={{
@@ -228,123 +258,132 @@ export default function SearchBar({
         />
       </View>
 
-      {/* Web: Simple HTML dropdown - Use Portal to render above everything */}
-      {Platform.OS === 'web' &&
-        shouldShowWebMenu &&
-        (showSuggestions || showRecent || showLoading) &&
-        dropdownPosition.width > 0 && (
-          <Portal>
-            <View
-              style={[
-                styles.dropdown,
-                {
-                  backgroundColor: theme.colors.surface,
-                  pointerEvents: 'box-none' as any,
-                  ...Platform.select({
-                    web: {
-                      position: 'fixed' as any,
-                      top: dropdownPosition.top,
-                      left: dropdownPosition.left,
-                      width: dropdownPosition.width,
-                      zIndex: 9999,
-                      // Use theme shadow color for box shadow
-                      boxShadow: `0 4px 6px ${theme.colors.shadow}1A`, // 10% opacity (0x1A in hex = 26/255 ≈ 0.1)
-                    },
-                  }),
+      {/* Large screens/web: Docked SearchView dropdown */}
+      {isLargeScreen && showDropdown && !disableOverlay && dropdownPosition.width > 0 && (
+        <Portal>
+          {/* Backdrop to close dropdown when clicking outside - positioned below search bar */}
+          <View
+            style={{
+              ...Platform.select({
+                web: {
+                  position: 'fixed' as any,
+                  top: dropdownPosition.top + 4,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 9998,
+                  backgroundColor: 'transparent',
+                  pointerEvents: 'auto' as any,
                 },
-              ]}
+              }),
+            }}
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={handleOverlayClose}
+            {...(Platform.OS === 'web' && {
+              onClick: handleOverlayClose,
+            })}
+          />
+          <View
+            style={[
+              styles.dockedSearchView,
+              {
+                backgroundColor: theme.colors.surface,
+                ...Platform.select({
+                  web: {
+                    position: 'fixed' as any,
+                    top: dropdownPosition.top + 4,
+                    left: dropdownPosition.left,
+                    width: dropdownPosition.width,
+                    zIndex: 9999,
+                    boxShadow: `0 8px 16px ${theme.colors.shadow}33`,
+                    maxHeight: 600,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: theme.colors.outlineVariant + '40',
+                  },
+                  default: {
+                    elevation: 8,
+                  },
+                }),
+              },
+            ]}
+            onStartShouldSetResponder={() => false}
+            onResponderGrant={() => {
+              // Cancel blur timeout when clicking inside dropdown
+              if (blurTimeoutRef.current) {
+                clearTimeout(blurTimeoutRef.current);
+                blurTimeoutRef.current = null;
+              }
+            }}
+            {...(Platform.OS === 'web' && {
+              onClick: (e: any) => {
+                e.stopPropagation();
+                // Cancel blur timeout when clicking inside dropdown
+                if (blurTimeoutRef.current) {
+                  clearTimeout(blurTimeoutRef.current);
+                  blurTimeoutRef.current = null;
+                }
+              },
+              onMouseDown: () => {
+                // Cancel blur timeout when clicking inside dropdown
+                if (blurTimeoutRef.current) {
+                  clearTimeout(blurTimeoutRef.current);
+                  blurTimeoutRef.current = null;
+                }
+              },
+            })}
+          >
+            {/* Results area */}
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              accessibilityRole="list"
+              accessibilityLabel={
+                showSuggestions
+                  ? `${safeSuggestions.length} search results found`
+                  : showNoResults
+                    ? 'No search results found'
+                    : showRecent
+                      ? `${recentVisitedArticles.length} recently viewed articles`
+                      : 'Search results'
+              }
             >
-              <ScrollView
-                style={{ maxHeight: 400, pointerEvents: 'auto' as any }}
-                nestedScrollEnabled={true}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={true}
-              >
-                {/* Search Suggestions */}
-                {showSuggestions &&
-                  safeSuggestions.map((suggestion, index: number) => (
-                    <Pressable
-                      key={`suggestion-${suggestion.title}-${index}`}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleSuggestionClick(suggestion.title);
-                      }}
-                      style={({ pressed }) => [
-                        styles.dropdownItem,
-                        {
-                          backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent',
-                          borderBottomColor: theme.colors.outlineVariant + '1A', // 10% opacity
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.dropdownItemText, { color: theme.colors.onSurface }]}>
-                        {suggestion.title}
-                      </Text>
-                      {suggestion.description && (
-                        <Text
-                          style={[
-                            styles.dropdownItemDescription,
-                            { color: theme.colors.onSurfaceVariant },
-                          ]}
-                        >
-                          {suggestion.description}
-                        </Text>
-                      )}
-                    </Pressable>
+              {isLoadingSuggestions && debouncedQuery.length > 2 && (
+                <View style={styles.skeletonContainer}>
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <SearchResultSkeleton key={`skeleton-${index}`} index={index} />
                   ))}
+                </View>
+              )}
 
-                {/* Recently Viewed */}
-                {showRecent &&
-                  recentVisitedArticles.map((item) => (
-                    <Pressable
-                      key={`recent-${item.title}-${item.visitedAt}`}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleSuggestionClick(item.title);
-                      }}
-                      style={({ pressed }) => [
-                        styles.dropdownItem,
-                        {
-                          backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent',
-                          borderBottomColor: theme.colors.outlineVariant + '1A', // 10% opacity
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.dropdownItemText, { color: theme.colors.onSurface }]}>
-                        {item.title}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.dropdownItemDescription,
-                          { color: theme.colors.onSurfaceVariant },
-                        ]}
-                      >
-                        {new Date(item.visitedAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </Text>
-                    </Pressable>
-                  ))}
+              {showSuggestions && (
+                <SearchResultsList
+                  suggestions={safeSuggestions}
+                  onSuggestionClick={handleSuggestionClickDocked}
+                  query={debouncedQuery}
+                />
+              )}
 
-                {/* Loading State */}
-                {showLoading && (
-                  <View style={[styles.dropdownItem, { borderBottomColor: theme.colors.outlineVariant + '1A' }]}>
-                    <Text
-                      style={[styles.dropdownItemText, { color: theme.colors.onSurfaceVariant }]}
-                    >
-                      Loading suggestions...
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-            </View>
-          </Portal>
-        )}
+              {showNoResults && (
+                <View accessibilityRole="alert" accessibilityLabel={`No results found for "${value}"`}>
+                  <NoResultsState query={value || ''} onClearSearch={handleOverlayClose} />
+                </View>
+              )}
 
-      {/* Mobile: Full-screen overlay */}
-      {Platform.OS !== 'web' && (
+              {showRecent && (
+                <RecentArticlesList
+                  recentVisitedArticles={recentVisitedArticles}
+                  onSuggestionClick={handleSuggestionClickDocked}
+                />
+              )}
+            </ScrollView>
+          </View>
+        </Portal>
+      )}
+
+      {/* Mobile: Full-screen SearchView overlay */}
+      {!isLargeScreen && (
         <SearchOverlay
           visible={showMobileOverlay && !disableOverlay}
           onClose={handleOverlayClose}
@@ -355,40 +394,38 @@ export default function SearchBar({
   );
 }
 
-// Styles that need theme are created dynamically in component
-const createStyles = (theme: any) => {
-  const spacing = require('@/constants/spacing').SPACING;
-  return StyleSheet.create({
-    dropdown: {
-      borderRadius: theme.roundness * 2, // 8dp equivalent (4dp * 2)
-      overflow: 'hidden',
-      ...Platform.select({
-        web: {
-          // boxShadow will be set dynamically in component to use theme colors
-        },
-        default: {
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          marginTop: spacing.xs / 2,
-          elevation: 4,
-          zIndex: 1000,
-        },
-      }),
-    },
-    dropdownItem: {
-      paddingHorizontal: SPACING.base,
-      paddingVertical: spacing.md,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      // borderBottomColor will be set dynamically in component to use theme colors
-    },
-    dropdownItemText: {
-      // fontSize and fontWeight removed - using variant defaults
-    },
-    dropdownItemDescription: {
-      // fontSize removed - using variant default
-      marginTop: spacing.xs / 4, // 2dp (half of xs)
-    },
-  });
-};
+const styles = StyleSheet.create({
+  dockedSearchView: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  searchBarContainer: {
+    width: '100%',
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.base,
+    gap: SPACING.xs,
+  },
+  searchBar: {
+    flex: 1,
+  },
+  closeButton: {
+    margin: 0,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: 0,
+    paddingBottom: SPACING.sm,
+  },
+  skeletonContainer: {
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
+  },
+});
+

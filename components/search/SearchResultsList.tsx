@@ -5,19 +5,24 @@ import BaseListWithHeader from './BaseListWithHeader';
 interface SearchResultsListProps {
   suggestions: SearchSuggestion[];
   onSuggestionClick: (title: string) => void;
+  query?: string;
 }
 
 export default function SearchResultsList({
   suggestions,
   onSuggestionClick,
+  query = '',
 }: SearchResultsListProps) {
+  const headerTitle = query ? `Search for '${query}'` : 'Search Results';
+  
   return (
     <BaseListWithHeader
       data={suggestions}
-      headerTitle="Search Results"
+      headerTitle={headerTitle}
       getTitle={(item) => item.title}
       getDescription={(item) => item.description || ''}
       getThumbnail={(item) => item.image || null}
+      getThumbnailDimensions={() => ({ width: 56, height: 56 })}
       fallbackIcon="file-document-outline"
       onItemPress={(item) => onSuggestionClick(item.title)}
       keyExtractor={(item) => `suggestion-${item.title}`}

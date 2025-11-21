@@ -59,9 +59,13 @@ export default function SearchScreen() {
     setSearchQuery(query);
   };
 
-  const handleSearchSubmit = useCallback(() => {
+  const handleSearchSubmit = useCallback(async () => {
     if (searchQuery.trim()) {
-      router.push(`/article/${encodeURIComponent(searchQuery.trim())}`);
+      const { findBestArticleMatch } = await import('@/utils/fuzzyArticleSearch');
+      const bestMatch = await findBestArticleMatch(searchQuery.trim());
+      if (bestMatch) {
+        router.push(`/article/${encodeURIComponent(bestMatch)}`);
+      }
     }
   }, [searchQuery]);
 

@@ -26,9 +26,13 @@ export default function AppSidebar() {
     }
   };
 
-  const handleSearchSubmit = () => {
+  const handleSearchSubmit = async () => {
     if (searchQuery.trim()) {
-      router.push(`/article/${encodeURIComponent(searchQuery.trim())}`);
+      const { findBestArticleMatch } = await import('@/utils/fuzzyArticleSearch');
+      const bestMatch = await findBestArticleMatch(searchQuery.trim());
+      if (bestMatch) {
+        router.push(`/article/${encodeURIComponent(bestMatch)}`);
+      }
     }
   };
 

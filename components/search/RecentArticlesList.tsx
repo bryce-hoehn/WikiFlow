@@ -56,7 +56,7 @@ export default function RecentArticlesList({
     <BaseListWithHeader
       data={articlesWithData}
       headerTitle="Recently Viewed"
-      getTitle={(item) => item.title}
+      getTitle={(item) => item.title.replace(/_/g, ' ')}
       getDescription={(item) =>
         item.article?.description || item.article?.extract?.substring(0, 150) || ''
       }

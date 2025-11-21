@@ -31,6 +31,7 @@ export interface PageInfo extends PageMetadata {
   pageimage?: string;
   description?: string;
   descriptionsource?: string;
+  index?: number; // Used when returned from generator=search
 }
 
 /**
