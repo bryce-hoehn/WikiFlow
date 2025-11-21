@@ -2,7 +2,7 @@
   "expo": {
     "name": "WikiScroll",
     "slug": "wikiscroll",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "description": "A modern, cross-platform Wikipedia reader built with React Native and Expo.",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -59,7 +59,9 @@
       "startUrl": "/"
     },
     "plugins": [
-      ["expo-router"],
+      [
+        "expo-router"
+      ],
       [
         "expo-splash-screen",
         {
