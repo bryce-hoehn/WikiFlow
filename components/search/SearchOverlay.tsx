@@ -256,9 +256,9 @@ export default function SearchOverlay({ visible, onClose, initialQuery = '' }: S
             style={[
               styles.searchBarContainer,
               {
-                paddingTop: insets.top,
+                paddingTop: insets.top + SPACING.base,
                 backgroundColor: theme.colors.surface,
-                height: COMPONENT_HEIGHTS.STANDARD + insets.top,
+                height: COMPONENT_HEIGHTS.STANDARD + insets.top + SPACING.base,
                 ...Platform.select({
                   web: {
                     boxShadow: `0 1px 3px ${theme.colors.shadow}1A`,

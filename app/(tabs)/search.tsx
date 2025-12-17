@@ -28,7 +28,7 @@ export default function SearchScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const flashListRef = useRef<any>(null);
   const insets = useSafeAreaInsets();
-  const totalHeaderHeight = HEADER_HEIGHT + insets.top;
+  const totalHeaderHeight = HEADER_HEIGHT + insets.top + SPACING.base;
   const wasFocusedRef = useRef(false);
 
 
@@ -243,7 +243,7 @@ export default function SearchScreen() {
             flex: 1,
             justifyContent: 'center',
             paddingHorizontal: SPACING.base,
-            paddingTop: insets.top,
+            paddingTop: insets.top + SPACING.base,
             minHeight: HEADER_HEIGHT,
             width: '100%',
           }}
