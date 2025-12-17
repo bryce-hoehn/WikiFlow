@@ -4,7 +4,7 @@
   <img src="./assets/images/icon.png" alt="wikiscape logo" height=128 width=128 />
 </p>
 
-[Demo](https://wikiscape.expo.app/)
+[Demo](https://wikiscape.app/)
 
 A cross-platform Wikipedia reader built with React Native and Expo. This project is my final passion project required for my UX Master's Degree at Kent State. The goal of the project is to provide a more educational alternative to social media platforms like X utilizing the same attention design principles that makes these platforms addictive.
 
