@@ -67,7 +67,7 @@ jobs:
           cd android
           ./gradlew bundleRelease
           cd ..
-          cp android/app/build/outputs/bundle/release/app-release.aab ./WikiScape-v${VERSION}-android.aab
+          cp android/app/build/outputs/bundle/release/app-release.aab ./WikiScape-v${{ VERSION }}-android.aab
           echo "Android App Bundle built successfully"
       
       - name: Build Android APK
@@ -75,19 +75,19 @@ jobs:
           cd android
           ./gradlew assembleRelease
           cd ..
-          cp android/app/build/outputs/apk/release/app-release.apk ./WikiScape-v${VERSION}-android.apk
+          cp android/app/build/outputs/apk/release/app-release.apk ./WikiScape-v${{ VERSION }}-android.apk
           echo "Android APK built successfully"
       
       - name: Upload AAB as artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-aab
-          path: ./WikiScape-v${VERSION}-android.aab
+          path: ./WikiScape-v${{ VERSION }}-android.aab
           retention-days: 90
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: ./WikiScape-v${VERSION}-android.apk
+          path: ./WikiScape-v${{ VERSION }}-android.apk
           retention-days: 90
